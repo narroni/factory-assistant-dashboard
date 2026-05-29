@@ -278,105 +278,143 @@ export default function SettingsPage() {
   }
 
   return (
-    <div className="px-8 py-6 space-y-6 max-w-4xl">
+    <div className="px-8 py-6">
+      {/* Page Header */}
+      <div className="mb-8">
+        <h1 className="text-2xl font-bold text-zinc-100">Settings</h1>
+        <p className="text-sm text-zinc-500 mt-1">Configure your dashboard and manage users</p>
+      </div>
 
-      {/* Factory Identity */}
-      <Section title="Factory Identity">
-        <div className="grid grid-cols-2 gap-4">
-          <Field label="Company Name"  value="Narko Industries d.o.o." />
-          <Field label="Factory Name"  value="Production Facility — Line A/B" />
-          <Field label="Factory Code"  value="FAC-001" hint="Internal factory identifier used in reports and labels." />
-          <Field label="Location"      value="Zagreb, Croatia" />
-        </div>
-      </Section>
-
-      {/* AI Assistant */}
-      <Section title="AI Assistant Configuration">
-        <div className="grid grid-cols-2 gap-4">
-          <Field
-            label="AI Assistant Name"
-            value="Factory Assistant"
-            hint="The name displayed in the dashboard header and AI Insights panel."
-          />
-          <SelectField
-            label="AI Model"
-            value="claude-sonnet-4-6"
-            options={["claude-sonnet-4-6", "claude-opus-4-8", "claude-haiku-4-5"]}
-            hint="Model used for AI-generated insights and recommendations."
-          />
-        </div>
-        <div className="flex items-center justify-between p-4 bg-zinc-800 rounded-lg">
-          <div>
-            <p className="text-xs font-medium text-zinc-200">AI Insights Panel</p>
-            <p className="text-xs text-zinc-500 mt-0.5">Show AI-generated recommendations on the Overview page.</p>
-          </div>
-          <div className="w-10 h-5 bg-blue-600 rounded-full flex items-center justify-end pr-0.5 cursor-pointer shrink-0">
-            <div className="w-4 h-4 bg-white rounded-full" />
-          </div>
-        </div>
-      </Section>
-
-      {/* Inventory Thresholds */}
-      <Section title="Inventory & Alerts">
-        <div className="grid grid-cols-3 gap-4">
-          <Field
-            label="Low Stock Threshold (%)"
-            value="25"
-            type="number"
-            hint="Alert when stock falls below this % of minimum."
-          />
-          <Field
-            label="Critical Stock Threshold (%)"
-            value="10"
-            type="number"
-            hint="Trigger critical alert at this % of minimum."
-          />
-          <Field
-            label="Reorder Lead Buffer (days)"
-            value="7"
-            type="number"
-            hint="Extra buffer days added to supplier lead time."
-          />
-        </div>
-        <div className="flex items-center justify-between p-4 bg-zinc-800 rounded-lg">
-          <div>
-            <p className="text-xs font-medium text-zinc-200">Email Notifications</p>
-            <p className="text-xs text-zinc-500 mt-0.5">Send low-stock alerts to the administrator email.</p>
-          </div>
-          <div className="w-10 h-5 bg-blue-600 rounded-full flex items-center justify-end pr-0.5 cursor-pointer shrink-0">
-            <div className="w-4 h-4 bg-white rounded-full" />
-          </div>
-        </div>
-      </Section>
-
-      {/* Audit Logs */}
-      {isAdmin && (
-        <Section title="Audit & Compliance">
-          <Link href="/settings/audit-logs">
-            <div className="flex items-center justify-between p-4 bg-zinc-800 rounded-lg hover:bg-zinc-700 transition-colors cursor-pointer">
-              <div>
-                <p className="text-xs font-medium text-zinc-200">Audit Logs</p>
-                <p className="text-xs text-zinc-500 mt-0.5">View create, update, delete, and status change history.</p>
-              </div>
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-zinc-400">
-                <path d="M9 18l6-6-6-6" />
-              </svg>
+      {/* Main Content Grid: 2 columns */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
+        {/* Left Column: Company & AI Settings */}
+        <div className="lg:col-span-1 space-y-6">
+          {/* Factory Identity */}
+          <Section title="Company Settings">
+            <div className="space-y-4">
+              <Field label="Company Name" value="Narko Industries d.o.o." />
+              <Field label="Factory Name" value="Production Facility — Line A/B" />
+              <Field label="Factory Code" value="FAC-001" hint="Internal factory identifier used in reports and labels." />
+              <Field label="Location" value="Zagreb, Croatia" />
             </div>
-          </Link>
-        </Section>
-      )}
+          </Section>
 
-      {/* User Management */}
+          {/* AI Assistant */}
+          <Section title="AI Assistant">
+            <div className="space-y-4">
+              <Field
+                label="Assistant Name"
+                value="Factory Assistant"
+                hint="The name displayed in the dashboard header."
+              />
+              <SelectField
+                label="AI Model"
+                value="claude-sonnet-4-6"
+                options={["claude-sonnet-4-6", "claude-opus-4-8", "claude-haiku-4-5"]}
+                hint="Model used for AI-generated insights."
+              />
+              <div className="flex items-center justify-between p-3 bg-zinc-800 rounded-lg">
+                <div>
+                  <p className="text-xs font-medium text-zinc-200">AI Insights Panel</p>
+                  <p className="text-xs text-zinc-500 mt-0.5">Show AI recommendations on Overview.</p>
+                </div>
+                <div className="w-10 h-5 bg-blue-600 rounded-full flex items-center justify-end pr-0.5 cursor-pointer shrink-0">
+                  <div className="w-4 h-4 bg-white rounded-full" />
+                </div>
+              </div>
+            </div>
+          </Section>
+        </div>
+
+        {/* Right Column: Inventory & Alerts + Audit & Compliance */}
+        <div className="lg:col-span-2 space-y-6">
+          {/* Inventory & Alerts */}
+          <Section title="Inventory & Alerts">
+            <div className="space-y-4">
+              <div className="grid grid-cols-3 gap-3">
+                <Field
+                  label="Low Stock (%)"
+                  value="25"
+                  type="number"
+                  hint="Alert when stock below minimum."
+                />
+                <Field
+                  label="Critical Stock (%)"
+                  value="10"
+                  type="number"
+                  hint="Trigger critical alert."
+                />
+                <Field
+                  label="Lead Buffer (days)"
+                  value="7"
+                  type="number"
+                  hint="Extra buffer days for lead time."
+                />
+              </div>
+              <div className="flex items-center justify-between p-3 bg-zinc-800 rounded-lg">
+                <div>
+                  <p className="text-xs font-medium text-zinc-200">Email Notifications</p>
+                  <p className="text-xs text-zinc-500 mt-0.5">Send low-stock alerts to admin email.</p>
+                </div>
+                <div className="w-10 h-5 bg-blue-600 rounded-full flex items-center justify-end pr-0.5 cursor-pointer shrink-0">
+                  <div className="w-4 h-4 bg-white rounded-full" />
+                </div>
+              </div>
+            </div>
+          </Section>
+
+          {/* Audit & Compliance */}
+          {isAdmin && (
+            <Link href="/settings/audit-logs">
+              <div className="bg-zinc-900 rounded-xl border border-zinc-800 p-6 hover:border-zinc-700 transition-colors cursor-pointer">
+                <div className="flex items-start justify-between">
+                  <div>
+                    <h3 className="text-sm font-semibold text-zinc-100">Audit Logs</h3>
+                    <p className="text-xs text-zinc-500 mt-1">View create, update, delete, and status change history.</p>
+                  </div>
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-zinc-400 shrink-0">
+                    <path d="M9 18l6-6-6-6" />
+                  </svg>
+                </div>
+              </div>
+            </Link>
+          )}
+        </div>
+      </div>
+
+      {/* User Management - Full Width */}
       {isAdmin && (
-        <Section title="User Management">
+        <div className="mt-8">
+          <div className="mb-4">
+            <h2 className="text-lg font-semibold text-zinc-100">User Management</h2>
+            <p className="text-xs text-zinc-500 mt-1">Add, edit, and manage user accounts and permissions</p>
+          </div>
           {loading ? (
             <div className="text-xs text-zinc-500">Loading users...</div>
           ) : (
             <>
-              <div className="rounded-lg border border-zinc-800 overflow-hidden">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="text-left text-xs text-zinc-500 uppercase tracking-wider border-b border-zinc-800 bg-zinc-800/50">
+              <div className="bg-zinc-900 rounded-xl border border-zinc-800 overflow-hidden">
+                <div className="px-6 py-4 border-b border-zinc-800 flex items-center justify-between">
+                  <h3 className="text-sm font-medium text-zinc-100">Users</h3>
+                  <button
+                    onClick={() => {
+                      setEditingUser(null);
+                      setForm({ name: "", email: "", role: "VIEWER", password: "" });
+                      setFormMode("add");
+                    }}
+                    className="flex items-center gap-2 px-3 py-1.5 bg-blue-600 hover:bg-blue-500 text-white text-xs font-medium rounded-lg transition-colors"
+                  >
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                      <line x1="12" y1="5" x2="12" y2="19" />
+                      <line x1="5" y1="12" x2="19" y2="12" />
+                    </svg>
+                    Add User
+                  </button>
+                </div>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="text-left text-xs text-zinc-500 uppercase tracking-wider border-b border-zinc-800 bg-zinc-800/50">
                       <th className="px-4 py-3 font-medium">User</th>
                       <th className="px-4 py-3 font-medium">Role</th>
                       <th className="px-4 py-3 font-medium">Status</th>
@@ -445,26 +483,13 @@ export default function SettingsPage() {
                         </tr>
                       ))
                     )}
-                  </tbody>
-                </table>
+                    </tbody>
+                  </table>
+                </div>
               </div>
-              <button
-                onClick={() => {
-                  setEditingUser(null);
-                  setForm({ name: "", email: "", role: "VIEWER", password: "" });
-                  setFormMode("add");
-                }}
-                className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white text-xs font-medium rounded-lg transition-colors"
-              >
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                  <line x1="12" y1="5" x2="12" y2="19" />
-                  <line x1="5" y1="12" x2="19" y2="12" />
-                </svg>
-                Add User
-              </button>
             </>
           )}
-        </Section>
+        </div>
       )}
 
       {/* Modals */}
