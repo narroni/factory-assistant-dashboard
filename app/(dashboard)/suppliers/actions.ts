@@ -1,6 +1,8 @@
 "use server";
 
 import { prisma } from "../../lib/prisma";
+import { requireAdmin } from "../../lib/auth-helpers";
+import { logAuditEvent } from "../../lib/audit";
 
 export type SupplierStatus = "Active" | "Warning" | "Inactive";
 
@@ -80,6 +82,8 @@ export async function getSuppliers(): Promise<Supplier[]> {
 
 export async function addSupplier(data: Omit<Supplier, "id">): Promise<Supplier> {
   try {
+    await requireAdmin();
+
     // Create supplier
     const dbSupplier = await prisma.supplier.create({
       data: {
@@ -124,6 +128,14 @@ export async function addSupplier(data: Omit<Supplier, "id">): Promise<Supplier>
 
     if (!supplierWithMats) throw new Error("Failed to create supplier");
 
+    await logAuditEvent("Supplier", supplierWithMats.id, "CREATE", undefined, {
+      name: supplierWithMats.name,
+      contact: supplierWithMats.contact,
+      email: supplierWithMats.email,
+      country: supplierWithMats.country,
+      status: statusFromDb[supplierWithMats.status as keyof typeof statusFromDb],
+    });
+
     return {
       id: supplierWithMats.id,
       name: supplierWithMats.name,
@@ -147,6 +159,10 @@ export async function updateSupplier(
   data: Omit<Supplier, "id">
 ): Promise<Supplier> {
   try {
+    await requireAdmin();
+
+    const before = await prisma.supplier.findUnique({ where: { id } });
+
     // Update supplier fields
     const dbSupplier = await prisma.supplier.update({
       where: { id },
@@ -196,6 +212,22 @@ export async function updateSupplier(
 
     if (!supplierWithMats) throw new Error("Failed to update supplier");
 
+    if (before) {
+      await logAuditEvent("Supplier", id, "UPDATE", {
+        name: before.name,
+        contact: before.contact,
+        email: before.email,
+        country: before.country,
+        status: statusFromDb[before.status as keyof typeof statusFromDb],
+      }, {
+        name: supplierWithMats.name,
+        contact: supplierWithMats.contact,
+        email: supplierWithMats.email,
+        country: supplierWithMats.country,
+        status: statusFromDb[supplierWithMats.status as keyof typeof statusFromDb],
+      });
+    }
+
     return {
       id: supplierWithMats.id,
       name: supplierWithMats.name,
@@ -216,9 +248,23 @@ export async function updateSupplier(
 
 export async function deleteSupplier(id: string): Promise<void> {
   try {
+    await requireAdmin();
+
+    const before = await prisma.supplier.findUnique({ where: { id } });
+
     await prisma.supplier.delete({
       where: { id },
     });
+
+    if (before) {
+      await logAuditEvent("Supplier", id, "DELETE", {
+        name: before.name,
+        contact: before.contact,
+        email: before.email,
+        country: before.country,
+        status: statusFromDb[before.status as keyof typeof statusFromDb],
+      });
+    }
   } catch (error) {
     console.error("Failed to delete supplier:", error);
     throw new Error("Failed to delete supplier");
@@ -230,6 +276,10 @@ export async function changeSupplierStatus(
   status: SupplierStatus
 ): Promise<Supplier> {
   try {
+    await requireAdmin();
+
+    const before = await prisma.supplier.findUnique({ where: { id } });
+
     const dbSupplier = await prisma.supplier.update({
       where: { id },
       data: {
@@ -243,6 +293,14 @@ export async function changeSupplierStatus(
         },
       },
     });
+
+    if (before) {
+      await logAuditEvent("Supplier", id, "UPDATE", {
+        status: statusFromDb[before.status as keyof typeof statusFromDb],
+      }, {
+        status: statusFromDb[dbSupplier.status as keyof typeof statusFromDb],
+      });
+    }
 
     return {
       id: dbSupplier.id,

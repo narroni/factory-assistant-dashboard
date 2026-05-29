@@ -1,6 +1,8 @@
 "use server";
 
 import { prisma } from "../../lib/prisma";
+import { requireAdmin } from "../../lib/auth-helpers";
+import { logAuditEvent } from "../../lib/audit";
 
 export type ProductStatus = "Active" | "Inactive" | "Prototype";
 
@@ -83,6 +85,7 @@ export async function getProducts(): Promise<Product[]> {
 
 export async function addProduct(data: Omit<Product, "id">): Promise<Product> {
   try {
+    await requireAdmin();
     // Create product first
     const dbProduct = await prisma.product.create({
       data: {
@@ -122,6 +125,13 @@ export async function addProduct(data: Omit<Product, "id">): Promise<Product> {
 
     if (!productWithReqs) throw new Error("Failed to create product");
 
+    await logAuditEvent("Product", productWithReqs.id, "CREATE", undefined, {
+      name: productWithReqs.name,
+      code: productWithReqs.code,
+      status: statusFromDb[productWithReqs.status as keyof typeof statusFromDb],
+      material: productWithReqs.primaryMaterial,
+    });
+
     return {
       id: productWithReqs.id,
       name: productWithReqs.name,
@@ -150,6 +160,10 @@ export async function updateProduct(
   data: Omit<Product, "id">
 ): Promise<Product> {
   try {
+    await requireAdmin();
+
+    const before = await prisma.product.findUnique({ where: { id } });
+
     // Update product fields
     const dbProduct = await prisma.product.update({
       where: { id },
@@ -195,6 +209,20 @@ export async function updateProduct(
 
     if (!productWithReqs) throw new Error("Failed to update product");
 
+    if (before) {
+      await logAuditEvent("Product", id, "UPDATE", {
+        name: before.name,
+        code: before.code,
+        status: statusFromDb[before.status as keyof typeof statusFromDb],
+        material: before.primaryMaterial,
+      }, {
+        name: productWithReqs.name,
+        code: productWithReqs.code,
+        status: statusFromDb[productWithReqs.status as keyof typeof statusFromDb],
+        material: productWithReqs.primaryMaterial,
+      });
+    }
+
     return {
       id: productWithReqs.id,
       name: productWithReqs.name,
@@ -220,9 +248,22 @@ export async function updateProduct(
 
 export async function deleteProduct(id: string): Promise<void> {
   try {
+    await requireAdmin();
+
+    const before = await prisma.product.findUnique({ where: { id } });
+
     await prisma.product.delete({
       where: { id },
     });
+
+    if (before) {
+      await logAuditEvent("Product", id, "DELETE", {
+        name: before.name,
+        code: before.code,
+        status: statusFromDb[before.status as keyof typeof statusFromDb],
+        material: before.primaryMaterial,
+      });
+    }
   } catch (error) {
     console.error("Failed to delete product:", error);
     throw new Error("Failed to delete product");
@@ -234,6 +275,10 @@ export async function changeProductStatus(
   status: ProductStatus
 ): Promise<Product> {
   try {
+    await requireAdmin();
+
+    const before = await prisma.product.findUnique({ where: { id } });
+
     const dbProduct = await prisma.product.update({
       where: { id },
       data: {
@@ -241,6 +286,14 @@ export async function changeProductStatus(
       },
       include: { materialRequirements: true },
     });
+
+    if (before) {
+      await logAuditEvent("Product", id, "UPDATE", {
+        status: statusFromDb[before.status as keyof typeof statusFromDb],
+      }, {
+        status: statusFromDb[dbProduct.status as keyof typeof statusFromDb],
+      });
+    }
 
     return {
       id: dbProduct.id,

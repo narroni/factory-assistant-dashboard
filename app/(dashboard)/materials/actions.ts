@@ -1,6 +1,8 @@
 "use server";
 
 import { prisma } from "../../lib/prisma";
+import { requireAdmin, requireCanChangeStatus } from "../../lib/auth-helpers";
+import { logAuditEvent } from "../../lib/audit";
 
 export type MaterialStatus = "In Stock" | "Low Stock" | "Out of Stock";
 
@@ -52,6 +54,8 @@ export async function getMaterials(): Promise<Material[]> {
 
 export async function addMaterial(data: Omit<Material, "id">): Promise<Material> {
   try {
+    await requireAdmin();
+
     const dbMaterial = await prisma.material.create({
       data: {
         name: data.name,
@@ -61,6 +65,15 @@ export async function addMaterial(data: Omit<Material, "id">): Promise<Material>
         unit: data.unit,
         status: statusToDb[data.status],
       },
+    });
+
+    await logAuditEvent("Material", dbMaterial.id, "CREATE", undefined, {
+      name: dbMaterial.name,
+      code: dbMaterial.code,
+      category: dbMaterial.category,
+      quantity: dbMaterial.quantity,
+      unit: dbMaterial.unit,
+      status: statusFromDb[dbMaterial.status as keyof typeof statusFromDb],
     });
 
     return {
@@ -84,6 +97,10 @@ export async function updateMaterial(
   data: Omit<Material, "id">
 ): Promise<Material> {
   try {
+    await requireAdmin();
+
+    const before = await prisma.material.findUnique({ where: { id } });
+
     const dbMaterial = await prisma.material.update({
       where: { id },
       data: {
@@ -95,6 +112,26 @@ export async function updateMaterial(
         status: statusToDb[data.status],
       },
     });
+
+    const afterData = {
+      name: dbMaterial.name,
+      code: dbMaterial.code,
+      category: dbMaterial.category,
+      quantity: dbMaterial.quantity,
+      unit: dbMaterial.unit,
+      status: statusFromDb[dbMaterial.status as keyof typeof statusFromDb],
+    };
+
+    if (before) {
+      await logAuditEvent("Material", id, "UPDATE", {
+        name: before.name,
+        code: before.code,
+        category: before.category,
+        quantity: before.quantity,
+        unit: before.unit,
+        status: statusFromDb[before.status as keyof typeof statusFromDb],
+      }, afterData);
+    }
 
     return {
       id: dbMaterial.id,
@@ -114,9 +151,24 @@ export async function updateMaterial(
 
 export async function deleteMaterial(id: string): Promise<void> {
   try {
+    await requireAdmin();
+
+    const before = await prisma.material.findUnique({ where: { id } });
+
     await prisma.material.delete({
       where: { id },
     });
+
+    if (before) {
+      await logAuditEvent("Material", id, "DELETE", {
+        name: before.name,
+        code: before.code,
+        category: before.category,
+        quantity: before.quantity,
+        unit: before.unit,
+        status: statusFromDb[before.status as keyof typeof statusFromDb],
+      });
+    }
   } catch (error) {
     console.error("Failed to delete material:", error);
     throw new Error("Failed to delete material");
@@ -128,12 +180,24 @@ export async function changeMaterialStatus(
   status: MaterialStatus
 ): Promise<Material> {
   try {
+    await requireCanChangeStatus("material");
+
+    const before = await prisma.material.findUnique({ where: { id } });
+
     const dbMaterial = await prisma.material.update({
       where: { id },
       data: {
         status: statusToDb[status],
       },
     });
+
+    if (before) {
+      await logAuditEvent("Material", id, "UPDATE", {
+        status: statusFromDb[before.status as keyof typeof statusFromDb],
+      }, {
+        status: statusFromDb[dbMaterial.status as keyof typeof statusFromDb],
+      });
+    }
 
     return {
       id: dbMaterial.id,

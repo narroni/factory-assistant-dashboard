@@ -1,6 +1,8 @@
 "use server";
 
 import { prisma } from "../../lib/prisma";
+import { requireAdmin, requireCanChangeStatus } from "../../lib/auth-helpers";
+import { logAuditEvent } from "../../lib/audit";
 
 export type OrderStatus = "Pending" | "In Production" | "Completed" | "Delayed" | "Cancelled";
 
@@ -66,6 +68,8 @@ export async function getOrders(): Promise<Order[]> {
 
 export async function addOrder(data: Omit<Order, "id">): Promise<Order> {
   try {
+    await requireAdmin();
+
     // Try to find product by code
     let productId: string | null = null;
     if (data.productCode) {
@@ -91,6 +95,14 @@ export async function addOrder(data: Omit<Order, "id">): Promise<Order> {
       },
     });
 
+    await logAuditEvent("Order", dbOrder.id, "CREATE", undefined, {
+      orderNumber: dbOrder.orderNumber,
+      customer: dbOrder.customer,
+      product: dbOrder.productName,
+      qty: dbOrder.qty,
+      status: statusFromDb[dbOrder.status as keyof typeof statusFromDb],
+    });
+
     return {
       id: dbOrder.id,
       customer: dbOrder.customer,
@@ -112,6 +124,10 @@ export async function updateOrder(
   data: Omit<Order, "id">
 ): Promise<Order> {
   try {
+    await requireAdmin();
+
+    const before = await prisma.order.findUnique({ where: { id } });
+
     // Try to find product by code
     let productId: string | null = null;
     if (data.productCode) {
@@ -137,6 +153,20 @@ export async function updateOrder(
       },
     });
 
+    if (before) {
+      await logAuditEvent("Order", id, "UPDATE", {
+        customer: before.customer,
+        product: before.productName,
+        qty: before.qty,
+        status: statusFromDb[before.status as keyof typeof statusFromDb],
+      }, {
+        customer: dbOrder.customer,
+        product: dbOrder.productName,
+        qty: dbOrder.qty,
+        status: statusFromDb[dbOrder.status as keyof typeof statusFromDb],
+      });
+    }
+
     return {
       id: dbOrder.id,
       customer: dbOrder.customer,
@@ -155,9 +185,22 @@ export async function updateOrder(
 
 export async function deleteOrder(id: string): Promise<void> {
   try {
+    await requireAdmin();
+
+    const before = await prisma.order.findUnique({ where: { id } });
+
     await prisma.order.delete({
       where: { id },
     });
+
+    if (before) {
+      await logAuditEvent("Order", id, "DELETE", {
+        customer: before.customer,
+        product: before.productName,
+        qty: before.qty,
+        status: statusFromDb[before.status as keyof typeof statusFromDb],
+      });
+    }
   } catch (error) {
     console.error("Failed to delete order:", error);
     throw new Error("Failed to delete order");
@@ -169,12 +212,24 @@ export async function changeOrderStatus(
   status: OrderStatus
 ): Promise<Order> {
   try {
+    await requireCanChangeStatus("order");
+
+    const before = await prisma.order.findUnique({ where: { id } });
+
     const dbOrder = await prisma.order.update({
       where: { id },
       data: {
         status: statusToDb[status],
       },
     });
+
+    if (before) {
+      await logAuditEvent("Order", id, "UPDATE", {
+        status: statusFromDb[before.status as keyof typeof statusFromDb],
+      }, {
+        status: statusFromDb[dbOrder.status as keyof typeof statusFromDb],
+      });
+    }
 
     return {
       id: dbOrder.id,
