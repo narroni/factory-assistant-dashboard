@@ -1,0 +1,249 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ── Enums ─────────────────────────────────────────────────────────────────────
+
+enum UserRole {
+  ADMIN
+  WORKER
+  VIEWER
+}
+
+enum UserStatus {
+  ACTIVE
+  INACTIVE
+}
+
+enum MaterialStatus {
+  IN_STOCK
+  LOW_STOCK
+  OUT_OF_STOCK
+}
+
+enum ProductStatus {
+  ACTIVE
+  INACTIVE
+  PROTOTYPE
+}
+
+enum OrderStatus {
+  PENDING
+  IN_PRODUCTION
+  COMPLETED
+  DELAYED
+  CANCELLED
+}
+
+enum SupplierStatus {
+  ACTIVE
+  WARNING
+  INACTIVE
+}
+
+enum MovementType {
+  RECEIPT
+  CONSUMPTION
+  ADJUSTMENT
+  RETURN
+}
+
+enum AuditAction {
+  CREATE
+  UPDATE
+  DELETE
+}
+
+// ── User ──────────────────────────────────────────────────────────────────────
+
+model User {
+  id     String     @id @default(cuid())
+  name   String
+  email  String     @unique
+  role   UserRole   @default(VIEWER)
+  status UserStatus @default(ACTIVE)
+
+  auditLogs AuditLog[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("users")
+}
+
+// ── Supplier ──────────────────────────────────────────────────────────────────
+
+model Supplier {
+  id           String         @id @default(cuid())
+  code         String         @unique
+  name         String
+  contact      String
+  email        String         @unique
+  phone        String?
+  country      String
+  leadTimeDays Int
+  onTimeRate   Float
+  status       SupplierStatus @default(ACTIVE)
+
+  materials SupplierMaterial[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([status])
+  @@map("suppliers")
+}
+
+// ── SupplierMaterial (join table) ─────────────────────────────────────────────
+
+model SupplierMaterial {
+  id         String @id @default(cuid())
+  supplierId String
+  materialId String
+
+  supplier Supplier @relation(fields: [supplierId], references: [id], onDelete: Cascade)
+  material Material @relation(fields: [materialId], references: [id], onDelete: Cascade)
+
+  @@unique([supplierId, materialId])
+  @@map("supplier_materials")
+}
+
+// ── Material ──────────────────────────────────────────────────────────────────
+
+model Material {
+  id       String         @id @default(cuid())
+  code     String         @unique
+  name     String
+  category String
+  quantity Float
+  unit     String
+  status   MaterialStatus @default(IN_STOCK)
+
+  suppliers           SupplierMaterial[]
+  productRequirements ProductMaterialRequirement[]
+  stockMovements      StockMovement[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([status])
+  @@index([category])
+  @@map("materials")
+}
+
+// ── Product ───────────────────────────────────────────────────────────────────
+
+model Product {
+  id              String        @id @default(cuid())
+  code            String        @unique
+  name            String
+  primaryMaterial String
+  notes           String?
+
+  lengthMm    Float
+  widthMm     Float
+  thicknessMm Float
+  weightKg    Float
+  volumeM3    Float
+
+  status ProductStatus @default(ACTIVE)
+
+  materialRequirements ProductMaterialRequirement[]
+  orders               Order[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([status])
+  @@map("products")
+}
+
+// ── ProductMaterialRequirement ────────────────────────────────────────────────
+
+model ProductMaterialRequirement {
+  id         String   @id @default(cuid())
+  productId  String
+  materialId String?
+
+  name     String
+  qtyValue Float
+  qtyUnit  String
+
+  product  Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  material Material? @relation(fields: [materialId], references: [id], onDelete: SetNull)
+
+  @@index([productId])
+  @@index([materialId])
+  @@map("product_material_requirements")
+}
+
+// ── Order ─────────────────────────────────────────────────────────────────────
+
+model Order {
+  id          String      @id @default(cuid())
+  orderNumber String      @unique
+  customer    String
+  productId   String?
+  productName String
+  productCode String
+  qty         Int
+  status      OrderStatus @default(PENDING)
+  dueDate     DateTime
+  valueEur    Float
+
+  product Product? @relation(fields: [productId], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([customer])
+  @@index([status])
+  @@index([dueDate])
+  @@map("orders")
+}
+
+// ── StockMovement ─────────────────────────────────────────────────────────────
+
+model StockMovement {
+  id         String       @id @default(cuid())
+  materialId String
+  type       MovementType
+  qtyDelta   Float
+  unit       String
+  note       String?
+
+  material Material @relation(fields: [materialId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@index([materialId])
+  @@index([type])
+  @@map("stock_movements")
+}
+
+// ── AuditLog ──────────────────────────────────────────────────────────────────
+
+model AuditLog {
+  id       String      @id @default(cuid())
+  entity   String
+  entityId String
+  action   AuditAction
+  userId   String?
+
+  before Json?
+  after  Json?
+
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+
+  @@index([entity, entityId])
+  @@index([userId])
+  @@index([createdAt])
+  @@map("audit_logs")
+}

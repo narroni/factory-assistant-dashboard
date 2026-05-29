@@ -1,0 +1,33 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: factory-dashboard-db
+    environment:
+      POSTGRES_USER: factory_user
+      POSTGRES_PASSWORD: factory_password
+      POSTGRES_DB: factory_dashboard
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - factory-network
+
+  adminer:
+    image: adminer
+    container_name: factory-dashboard-adminer
+    ports:
+      - "8080:8080"
+    depends_on:
+      - postgres
+    networks:
+      - factory-network
+
+volumes:
+  postgres_data:
+
+networks:
+  factory-network:
+    driver: bridge
