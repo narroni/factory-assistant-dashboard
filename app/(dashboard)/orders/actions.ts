@@ -47,7 +47,7 @@ function parseDate(str: string): Date {
 export async function getOrders(): Promise<Order[]> {
   try {
     const dbOrders = await prisma.order.findMany({
-      orderBy: { createdAt: "asc" },
+      orderBy: { createdAt: "desc" },
     });
 
     return dbOrders.map((o) => ({

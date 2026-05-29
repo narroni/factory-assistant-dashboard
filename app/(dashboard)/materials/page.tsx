@@ -90,6 +90,8 @@ export default function MaterialsPage() {
   const [search, setSearch]       = useState("");
   const [categoryFilter, setCat]  = useState("All");
   const [statusFilter, setStatus] = useState("All");
+  const [page, setPage]           = useState(1);
+  const [pageSize, setPageSize]   = useState(10);
   const [formMode, setFormMode]   = useState<"add" | "edit" | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm]           = useState<FormState>(EMPTY_FORM);
@@ -115,6 +117,11 @@ export default function MaterialsPage() {
     })();
   }, [showToast]);
 
+  // Reset to page 1 when filters change
+  useEffect(() => {
+    setPage(1);
+  }, [search, categoryFilter, statusFilter]);
+
   const categories = ["All", ...Array.from(new Set(items.map((m) => m.category))).sort()];
 
   const filtered = items.filter((m) => {
@@ -125,6 +132,9 @@ export default function MaterialsPage() {
       (statusFilter === "All" || m.status === statusFilter)
     );
   });
+
+  const paged = filtered.slice((page - 1) * pageSize, page * pageSize);
+  const totalPages = Math.ceil(filtered.length / pageSize);
 
   const counts = {
     total:      items.length,
@@ -152,7 +162,7 @@ export default function MaterialsPage() {
     try {
       if (formMode === "add") {
         const newMaterial = await addMaterial(form);
-        setItems((prev) => [...prev, newMaterial]);
+        setItems((prev) => [newMaterial, ...prev]);
         showToast("Material added successfully.");
       } else if (editingId) {
         const updated = await updateMaterial(editingId, form);
@@ -260,8 +270,8 @@ export default function MaterialsPage() {
                   <p className="text-zinc-500 text-sm">No materials match your filters.</p>
                   <button onClick={() => { setSearch(""); setCat("All"); setStatus("All"); }} className="text-xs text-blue-400 hover:text-blue-300 mt-2">Clear filters</button>
                 </td></tr>
-              ) : filtered.map((m, i) => (
-                <tr key={m.id} className={`hover:bg-zinc-800/40 transition-colors ${i < filtered.length - 1 ? "border-b border-zinc-800" : ""}`}>
+              ) : paged.map((m, i) => (
+                <tr key={m.id} className={`hover:bg-zinc-800/40 transition-colors ${i < paged.length - 1 ? "border-b border-zinc-800" : ""}`}>
                   <td className="px-6 py-3.5 text-xs font-medium text-zinc-200">{m.name}</td>
                   <td className="px-6 py-3.5 font-mono text-xs text-zinc-500">{m.code}</td>
                   <td className="px-6 py-3.5"><span className="text-xs bg-zinc-800 text-zinc-400 px-2 py-0.5 rounded">{m.category}</span></td>
@@ -288,11 +298,37 @@ export default function MaterialsPage() {
           </table>
         </div>
 
-        <div className="px-6 py-3 border-t border-zinc-800">
-          <p className="text-xs text-zinc-600">
-            {filtered.length} material{filtered.length !== 1 ? "s" : ""} shown
-            {(search || categoryFilter !== "All" || statusFilter !== "All") && " · filters active"}
-          </p>
+        <div className="flex items-center justify-between px-6 py-3 border-t border-zinc-800">
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-zinc-500">Rows per page:</span>
+            <select
+              value={pageSize}
+              onChange={(e) => { setPageSize(Number(e.target.value)); setPage(1); }}
+              className="bg-zinc-800 border border-zinc-700 text-zinc-300 text-xs px-2 py-1 rounded-lg focus:outline-none focus:border-blue-500 transition-colors"
+            >
+              {[10, 25, 50].map((n) => <option key={n} value={n}>{n}</option>)}
+            </select>
+          </div>
+          <span className="text-xs text-zinc-500">
+            Showing {Math.min((page - 1) * pageSize + 1, filtered.length)}–{Math.min(page * pageSize, filtered.length)} of {filtered.length}
+          </span>
+          <div className="flex items-center gap-1">
+            <button
+              onClick={() => setPage((p) => Math.max(1, p - 1))}
+              disabled={page === 1}
+              className="text-xs text-zinc-400 hover:text-zinc-200 disabled:opacity-40 disabled:cursor-not-allowed px-2 py-1 transition-colors"
+            >
+              Previous
+            </button>
+            <span className="text-xs text-zinc-400">{page} / {totalPages}</span>
+            <button
+              onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+              disabled={page >= totalPages}
+              className="text-xs text-zinc-400 hover:text-zinc-200 disabled:opacity-40 disabled:cursor-not-allowed px-2 py-1 transition-colors"
+            >
+              Next
+            </button>
+          </div>
         </div>
       </section>
 

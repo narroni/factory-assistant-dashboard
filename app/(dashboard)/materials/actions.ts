@@ -33,7 +33,7 @@ const statusFromDb = {
 export async function getMaterials(): Promise<Material[]> {
   try {
     const dbMaterials = await prisma.material.findMany({
-      orderBy: { createdAt: "asc" },
+      orderBy: { createdAt: "desc" },
     });
 
     return dbMaterials.map((m) => ({

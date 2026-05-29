@@ -153,10 +153,18 @@ export default function ReportsPage() {
       <div>
         <h2 className="text-sm font-semibold text-zinc-300 mb-4">Available Reports</h2>
         <div className="grid grid-cols-3 gap-4">
-          {reports.map((r) => (
+          {reports.map((r) => {
+            const icons: Record<string, React.ReactNode> = {
+              inventory: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="text-zinc-400"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>,
+              products: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="text-zinc-400"><path d="M12 2L2 7v10c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V7l-10-5z"/></svg>,
+              orders: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="text-zinc-400"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>,
+              suppliers: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="text-zinc-400"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>,
+              capacity: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="text-zinc-400"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"></polyline><polyline points="17 6 23 6 23 12"></polyline></svg>,
+            };
+            return (
             <div key={r.id} className={`rounded-xl border p-5 flex flex-col gap-4 ${r.accentBorder}`}>
               <div className="flex items-start justify-between">
-                <span className="text-2xl">{r.icon}</span>
+                {icons[r.id]}
                 <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${r.badge}`}>{r.frequency}</span>
               </div>
               <div>
@@ -202,7 +210,8 @@ export default function ReportsPage() {
                 </div>
               </div>
             </div>
-          ))}
+          );
+          })}
         </div>
       </div>
 

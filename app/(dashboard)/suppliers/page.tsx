@@ -150,6 +150,8 @@ export default function SuppliersPage() {
   const [items, setItems]         = useState<Supplier[]>([]);
   const [search, setSearch]       = useState("");
   const [statusFilter, setStatus] = useState<SupplierStatus | "All">("All");
+  const [page, setPage]           = useState(1);
+  const [pageSize, setPageSize]   = useState(10);
   const [formMode, setFormMode]   = useState<"add" | "edit" | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm]           = useState<FormState>(EMPTY_FORM);
@@ -175,6 +177,11 @@ export default function SuppliersPage() {
     })();
   }, [showToast]);
 
+  // Reset to page 1 when filters change
+  useEffect(() => {
+    setPage(1);
+  }, [search, statusFilter]);
+
   const filtered = items.filter((s) => {
     const q = search.toLowerCase();
     return (
@@ -182,6 +189,9 @@ export default function SuppliersPage() {
       (statusFilter === "All" || s.status === statusFilter)
     );
   });
+
+  const paged = filtered.slice((page - 1) * pageSize, page * pageSize);
+  const totalPages = Math.ceil(filtered.length / pageSize);
 
   const avgRate = items.length > 0 ? Math.round(items.reduce((a, s) => a + s.onTimeRate, 0) / items.length) : 0;
 
@@ -203,7 +213,7 @@ export default function SuppliersPage() {
     try {
       if (formMode === "add") {
         const newSupplier = await addSupplier(cleaned);
-        setItems((prev) => [...prev, newSupplier]);
+        setItems((prev) => [newSupplier, ...prev]);
         showToast("Supplier added.");
       } else if (editingId) {
         const updated = await updateSupplier(editingId, cleaned);
@@ -302,8 +312,8 @@ export default function SuppliersPage() {
                   <p className="text-zinc-500 text-sm">No suppliers match your filters.</p>
                   <button onClick={() => { setSearch(""); setStatus("All"); }} className="text-xs text-blue-400 hover:text-blue-300 mt-2">Clear filters</button>
                 </td></tr>
-              ) : filtered.map((s, i) => (
-                <tr key={s.id} className={`hover:bg-zinc-800/40 transition-colors ${i < filtered.length - 1 ? "border-b border-zinc-800" : ""}`}>
+              ) : paged.map((s, i) => (
+                <tr key={s.id} className={`hover:bg-zinc-800/40 transition-colors ${i < paged.length - 1 ? "border-b border-zinc-800" : ""}`}>
                   <td className="px-6 py-3.5">
                     <div className="flex items-center gap-2.5">
                       <div className="w-7 h-7 rounded-full bg-zinc-700 flex items-center justify-center text-xs font-bold text-zinc-300 shrink-0">{s.name[0]}</div>
@@ -335,8 +345,37 @@ export default function SuppliersPage() {
           </table>
         </div>
 
-        <div className="px-6 py-3 border-t border-zinc-800">
-          <p className="text-xs text-zinc-600">{filtered.length} supplier{filtered.length !== 1 ? "s" : ""} shown{(search || statusFilter !== "All") && " · filters active"}</p>
+        <div className="flex items-center justify-between px-6 py-3 border-t border-zinc-800">
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-zinc-500">Rows per page:</span>
+            <select
+              value={pageSize}
+              onChange={(e) => { setPageSize(Number(e.target.value)); setPage(1); }}
+              className="bg-zinc-800 border border-zinc-700 text-zinc-300 text-xs px-2 py-1 rounded-lg focus:outline-none focus:border-blue-500 transition-colors"
+            >
+              {[10, 25, 50].map((n) => <option key={n} value={n}>{n}</option>)}
+            </select>
+          </div>
+          <span className="text-xs text-zinc-500">
+            Showing {Math.min((page - 1) * pageSize + 1, filtered.length)}–{Math.min(page * pageSize, filtered.length)} of {filtered.length}
+          </span>
+          <div className="flex items-center gap-1">
+            <button
+              onClick={() => setPage((p) => Math.max(1, p - 1))}
+              disabled={page === 1}
+              className="text-xs text-zinc-400 hover:text-zinc-200 disabled:opacity-40 disabled:cursor-not-allowed px-2 py-1 transition-colors"
+            >
+              Previous
+            </button>
+            <span className="text-xs text-zinc-400">{page} / {totalPages}</span>
+            <button
+              onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+              disabled={page >= totalPages}
+              className="text-xs text-zinc-400 hover:text-zinc-200 disabled:opacity-40 disabled:cursor-not-allowed px-2 py-1 transition-colors"
+            >
+              Next
+            </button>
+          </div>
         </div>
       </section>
 

@@ -59,7 +59,7 @@ export async function getSuppliers(): Promise<Supplier[]> {
           },
         },
       },
-      orderBy: { createdAt: "asc" },
+      orderBy: { createdAt: "desc" },
     });
 
     return dbSuppliers.map((s) => ({

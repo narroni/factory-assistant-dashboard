@@ -57,7 +57,7 @@ export async function getProducts(): Promise<Product[]> {
       include: {
         materialRequirements: true,
       },
-      orderBy: { createdAt: "asc" },
+      orderBy: { createdAt: "desc" },
     });
 
     return dbProducts.map((p) => ({
