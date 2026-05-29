@@ -1,42 +1,23 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { ModalShell } from "../components/ModalShell";
 import { DeleteConfirm } from "../components/DeleteConfirm";
 import { useToast, ToastList } from "../components/Toast";
 import { Label, inputCls, SearchInput, AddButton, EditButton, DeleteButton, InlineStatusSelect } from "../components/ui";
+import {
+  getOrders,
+  addOrder,
+  updateOrder,
+  deleteOrder,
+  changeOrderStatus,
+  type Order,
+  type OrderStatus,
+} from "./actions";
 
-// ── Types ─────────────────────────────────────────────────────────────────────
+// ── Seed data (unused) ────────────────────────────────────────────────────────
 
-type OrderStatus = "Pending" | "In Production" | "Completed" | "Delayed" | "Cancelled";
-
-type Order = {
-  id: string;
-  customer: string;
-  product: string;
-  productCode: string;
-  qty: number;
-  status: OrderStatus;
-  dueDate: string;
-  value: number;
-};
-
-// ── Seed data ─────────────────────────────────────────────────────────────────
-
-const INITIAL_ORDERS: Order[] = [
-  { id: "ORD-4821", customer: "Vestas Wind Systems",  product: "Wind Turbine Blade B-52",         productCode: "WTB-52",   qty: 6,    status: "In Production", dueDate: "2026-06-15", value: 890000  },
-  { id: "ORD-4820", customer: "Siemens Gamesa",       product: "Wind Turbine Blade B-38",         productCode: "WTB-38",   qty: 12,   status: "Pending",       dueDate: "2026-07-01", value: 720000  },
-  { id: "ORD-4819", customer: "Claas Group",          product: "Agricultural Mower Blade AM-600", productCode: "AMB-600",  qty: 2000, status: "Completed",     dueDate: "2026-05-28", value: 42000   },
-  { id: "ORD-4818", customer: "Renault SA",           product: "Industrial Cutting Blade IC-300", productCode: "ICB-300",  qty: 500,  status: "Completed",     dueDate: "2026-05-20", value: 18500   },
-  { id: "ORD-4817", customer: "Airbus Helicopters",   product: "Helicopter Rotor Blade HR-14",    productCode: "HRB-14",   qty: 4,    status: "In Production", dueDate: "2026-06-30", value: 540000  },
-  { id: "ORD-4816", customer: "GE Vernova",           product: "Wind Turbine Blade B-65",         productCode: "WTB-65",   qty: 3,    status: "Pending",       dueDate: "2026-09-15", value: 1200000 },
-  { id: "ORD-4815", customer: "Andritz AG",           product: "Shredder Blade SB-200",           productCode: "SHB-200",  qty: 80,   status: "Completed",     dueDate: "2026-05-10", value: 12800   },
-  { id: "ORD-4814", customer: "John Deere",           product: "Agricultural Mower Blade AM-600", productCode: "AMB-600",  qty: 1500, status: "In Production", dueDate: "2026-06-05", value: 31500   },
-  { id: "ORD-4813", customer: "Hexcel Corp",          product: "Bandsaw Blade BS-4000",           productCode: "BSB-4000", qty: 200,  status: "Completed",     dueDate: "2026-05-22", value: 9600    },
-  { id: "ORD-4812", customer: "Rolls-Royce PLC",      product: "Gas Turbine Blade TB-80",         productCode: "GTB-80",   qty: 20,   status: "In Production", dueDate: "2026-07-30", value: 380000  },
-  { id: "ORD-4811", customer: "AGCO Corporation",     product: "Agricultural Mower Blade AM-600", productCode: "AMB-600",  qty: 3000, status: "Pending",       dueDate: "2026-07-15", value: 63000   },
-  { id: "ORD-4810", customer: "Nordex Group",         product: "Wind Turbine Blade B-52",         productCode: "WTB-52",   qty: 9,    status: "Completed",     dueDate: "2026-04-30", value: 1335000 },
-];
+const INITIAL_ORDERS: Order[] = [];
 
 const STATUSES: OrderStatus[] = ["Pending", "In Production", "Completed", "Delayed", "Cancelled"];
 
@@ -56,11 +37,6 @@ const EMPTY_FORM: FormState = {
   customer: "", product: "", productCode: "",
   qty: 1, status: "Pending", dueDate: "", value: 0,
 };
-
-function nextId(items: Order[]) {
-  const nums = items.map((o) => parseInt(o.id.replace("ORD-", ""), 10)).filter((n) => !isNaN(n));
-  return `ORD-${Math.max(0, ...nums) + 1}`;
-}
 
 // ── Order Form Modal ──────────────────────────────────────────────────────────
 
@@ -120,16 +96,35 @@ function OrderForm({ mode, orderId, form, onChange, onSave, onClose }: {
 // ── Page ──────────────────────────────────────────────────────────────────────
 
 export default function OrdersPage() {
-  const [items, setItems]         = useState<Order[]>(INITIAL_ORDERS);
+  const [items, setItems]         = useState<Order[]>([]);
   const [search, setSearch]       = useState("");
   const [statusFilter, setStatus] = useState<OrderStatus | "All">("All");
   const [formMode, setFormMode]   = useState<"add" | "edit" | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm]           = useState<FormState>(EMPTY_FORM);
   const [deleteId, setDeleteId]   = useState<string | null>(null);
+  const [loading, setLoading]     = useState(true);
+  const [error, setError]         = useState<string | null>(null);
   const { toasts, showToast }     = useToast();
 
-  const pendingOrderId = formMode === "add" ? nextId(items) : (editingId ?? "");
+  // Load orders from database on mount
+  useEffect(() => {
+    (async () => {
+      try {
+        setLoading(true);
+        setError(null);
+        const data = await getOrders();
+        setItems(data);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Failed to load orders");
+        showToast("Error loading orders", "error");
+      } finally {
+        setLoading(false);
+      }
+    })();
+  }, [showToast]);
+
+  const pendingOrderId = formMode === "add" ? `ORD-${Date.now()}` : (editingId ?? "");
 
   const filtered = items.filter((o) => {
     const q = search.toLowerCase();
@@ -153,34 +148,61 @@ export default function OrdersPage() {
   function openEdit(o: Order) { setForm({ customer: o.customer, product: o.product, productCode: o.productCode, qty: o.qty, status: o.status, dueDate: o.dueDate, value: o.value }); setEditingId(o.id); setFormMode("edit"); }
   function closeForm() { setFormMode(null); setEditingId(null); }
 
-  function saveItem() {
+  async function saveItem() {
     if (!form.customer.trim() || !form.product.trim() || !form.dueDate) return;
-    if (formMode === "add") {
-      setItems((prev) => [{ id: nextId(prev), ...form }, ...prev]);
-      showToast("Order created.");
-    } else if (editingId) {
-      setItems((prev) => prev.map((o) => o.id === editingId ? { ...o, ...form } : o));
-      showToast("Order updated.");
+    try {
+      if (formMode === "add") {
+        const newOrder = await addOrder(form);
+        setItems((prev) => [newOrder, ...prev]);
+        showToast("Order created.");
+      } else if (editingId) {
+        const updated = await updateOrder(editingId, form);
+        setItems((prev) => prev.map((o) => o.id === editingId ? updated : o));
+        showToast("Order updated.");
+      }
+      closeForm();
+    } catch (err) {
+      showToast(err instanceof Error ? err.message : "Operation failed", "error");
     }
-    closeForm();
   }
 
-  function changeStatus(id: string, status: OrderStatus) {
-    setItems((prev) => prev.map((o) => o.id === id ? { ...o, status } : o));
-    showToast("Status updated.");
+  async function changeStatus(id: string, status: OrderStatus) {
+    try {
+      const updated = await changeOrderStatus(id, status);
+      setItems((prev) => prev.map((o) => o.id === id ? updated : o));
+      showToast("Status updated.");
+    } catch (err) {
+      showToast(err instanceof Error ? err.message : "Status update failed", "error");
+    }
   }
 
-  function confirmDelete() {
-    const label = items.find((o) => o.id === deleteId)?.id ?? "Order";
-    setItems((prev) => prev.filter((o) => o.id !== deleteId));
-    setDeleteId(null);
-    showToast(`${label} deleted.`);
+  async function confirmDelete() {
+    if (!deleteId) return;
+    try {
+      const label = items.find((o) => o.id === deleteId)?.id ?? "Order";
+      await deleteOrder(deleteId);
+      setItems((prev) => prev.filter((o) => o.id !== deleteId));
+      setDeleteId(null);
+      showToast(`${label} deleted.`);
+    } catch (err) {
+      showToast(err instanceof Error ? err.message : "Delete failed", "error");
+    }
   }
 
   const deletingItem = items.find((o) => o.id === deleteId);
 
   return (
     <div className="px-8 py-6 space-y-6">
+      {loading && (
+        <div className="bg-blue-900/50 border border-blue-800 text-blue-300 px-4 py-3 rounded-lg text-sm">
+          Loading orders...
+        </div>
+      )}
+      {error && (
+        <div className="bg-red-900/50 border border-red-800 text-red-300 px-4 py-3 rounded-lg text-sm">
+          {error}
+        </div>
+      )}
 
       {/* Summary strip */}
       <div className="grid grid-cols-4 gap-4">
