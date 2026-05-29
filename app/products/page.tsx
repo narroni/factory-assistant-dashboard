@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { ModalShell } from "../components/ModalShell";
 import { DeleteConfirm } from "../components/DeleteConfirm";
 import { useToast, ToastList } from "../components/Toast";
@@ -8,28 +8,18 @@ import {
   Label, TextInput, NumberInput, SelectInput,
   SearchInput, AddButton, InlineStatusSelect,
 } from "../components/ui";
+import {
+  getProducts,
+  addProduct,
+  updateProduct,
+  deleteProduct,
+  changeProductStatus,
+  type Product,
+  type ProductStatus,
+  type MaterialReq,
+} from "./actions";
 
-// ── Types ─────────────────────────────────────────────────────────────────────
-
-type ProductStatus = "Active" | "Inactive" | "Prototype";
-type MaterialReq   = { name: string; qty: string };
-
-type Product = {
-  id: string;
-  name: string;
-  code: string;
-  length: number;
-  width: number;
-  thickness: number;
-  weight: number;
-  volume: number;
-  material: string;
-  status: ProductStatus;
-  notes: string;
-  materialRequirements: MaterialReq[];
-};
-
-// ── Seed data ─────────────────────────────────────────────────────────────────
+// ── Seed data (fallback, unused) ──────────────────────────────────────────────
 
 const INITIAL_PRODUCTS: Product[] = [
   { id: "PRD-001", name: "Wind Turbine Blade B-52", code: "WTB-52", length: 52000, width: 2800, thickness: 180, weight: 6500, volume: 11.5, material: "Carbon Fiber / Fiberglass", status: "Active", notes: "Large-scale wind energy blade. Requires precision mold alignment. Cure time: 48h at 80°C. Post-cure NDT inspection mandatory on every production run. Shell + spar cap construction.", materialRequirements: [{ name: "Carbon Fiber Fabric 600g/m²", qty: "420 m²" }, { name: "Fiberglass Woven 450g/m²", qty: "680 m²" }, { name: "Epoxy Resin LR135", qty: "310 kg" }, { name: "Balsa Wood Core", qty: "4.2 m³" }] },
@@ -75,11 +65,6 @@ const EMPTY_FORM: FormState = {
 
 function productToForm(p: Product): FormState {
   return { name: p.name, code: p.code, length: p.length, width: p.width, thickness: p.thickness, weight: p.weight, volume: p.volume, material: p.material, status: p.status, notes: p.notes, materialRequirements: p.materialRequirements.map((r) => ({ ...r })) };
-}
-
-function nextId(items: Product[]) {
-  const nums = items.map((p) => parseInt(p.id.replace("PRD-", ""), 10)).filter((n) => !isNaN(n));
-  return `PRD-${String(Math.max(0, ...nums) + 1).padStart(3, "0")}`;
 }
 
 // ── Product Form Modal ────────────────────────────────────────────────────────
@@ -250,7 +235,7 @@ function DetailPanel({ product, onClose, onEdit, onDelete }: {
 // ── Page ──────────────────────────────────────────────────────────────────────
 
 export default function ProductsPage() {
-  const [items, setItems]           = useState<Product[]>(INITIAL_PRODUCTS);
+  const [items, setItems]           = useState<Product[]>([]);
   const [search, setSearch]         = useState("");
   const [statusFilter, setStatus]   = useState<ProductStatus | "All">("All");
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -258,7 +243,26 @@ export default function ProductsPage() {
   const [editingId, setEditingId]   = useState<string | null>(null);
   const [form, setForm]             = useState<FormState>(EMPTY_FORM);
   const [deleteId, setDeleteId]     = useState<string | null>(null);
+  const [loading, setLoading]       = useState(true);
+  const [error, setError]           = useState<string | null>(null);
   const { toasts, showToast }       = useToast();
+
+  // Load products from database on mount
+  useEffect(() => {
+    (async () => {
+      try {
+        setLoading(true);
+        setError(null);
+        const data = await getProducts();
+        setItems(data);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Failed to load products");
+        showToast("Error loading products", "error");
+      } finally {
+        setLoading(false);
+      }
+    })();
+  }, [showToast]);
 
   const selected = items.find((p) => p.id === selectedId) ?? null;
 
@@ -287,37 +291,63 @@ export default function ProductsPage() {
 
   function closeForm() { setFormMode(null); setEditingId(null); }
 
-  function saveItem() {
+  async function saveItem() {
     if (!form.name.trim() || !form.code.trim() || !form.material.trim()) return;
-    if (formMode === "add") {
-      const np: Product = { id: nextId(items), ...form };
-      setItems((prev) => [...prev, np]);
-      setSelectedId(np.id);
-      showToast("Product added successfully.");
-    } else if (editingId) {
-      setItems((prev) => prev.map((p) => p.id === editingId ? { ...p, ...form } : p));
-      showToast("Product updated.");
+    try {
+      if (formMode === "add") {
+        const newProduct = await addProduct(form);
+        setItems((prev) => [...prev, newProduct]);
+        setSelectedId(newProduct.id);
+        showToast("Product added successfully.");
+      } else if (editingId) {
+        const updated = await updateProduct(editingId, form);
+        setItems((prev) => prev.map((p) => p.id === editingId ? updated : p));
+        showToast("Product updated.");
+      }
+      closeForm();
+    } catch (err) {
+      showToast(err instanceof Error ? err.message : "Operation failed", "error");
     }
-    closeForm();
   }
 
-  function changeStatus(id: string, status: ProductStatus) {
-    setItems((prev) => prev.map((p) => p.id === id ? { ...p, status } : p));
-    showToast("Status updated.");
+  async function changeStatus(id: string, status: ProductStatus) {
+    try {
+      const updated = await changeProductStatus(id, status);
+      setItems((prev) => prev.map((p) => p.id === id ? updated : p));
+      showToast("Status updated.");
+    } catch (err) {
+      showToast(err instanceof Error ? err.message : "Status update failed", "error");
+    }
   }
 
-  function confirmDelete() {
-    const name = items.find((p) => p.id === deleteId)?.name ?? "Product";
-    if (selectedId === deleteId) setSelectedId(null);
-    setItems((prev) => prev.filter((p) => p.id !== deleteId));
-    setDeleteId(null);
-    showToast(`"${name}" deleted.`);
+  async function confirmDelete() {
+    if (!deleteId) return;
+    try {
+      const name = items.find((p) => p.id === deleteId)?.name ?? "Product";
+      await deleteProduct(deleteId);
+      if (selectedId === deleteId) setSelectedId(null);
+      setItems((prev) => prev.filter((p) => p.id !== deleteId));
+      setDeleteId(null);
+      showToast(`"${name}" deleted.`);
+    } catch (err) {
+      showToast(err instanceof Error ? err.message : "Delete failed", "error");
+    }
   }
 
   const deletingItem = items.find((p) => p.id === deleteId);
 
   return (
     <div className="px-8 py-6 space-y-5">
+      {loading && (
+        <div className="bg-blue-900/50 border border-blue-800 text-blue-300 px-4 py-3 rounded-lg text-sm">
+          Loading products...
+        </div>
+      )}
+      {error && (
+        <div className="bg-red-900/50 border border-red-800 text-red-300 px-4 py-3 rounded-lg text-sm">
+          {error}
+        </div>
+      )}
 
       {/* KPI strip */}
       <div className="grid grid-cols-4 gap-4">
