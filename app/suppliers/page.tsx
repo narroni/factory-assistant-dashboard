@@ -1,27 +1,19 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { ModalShell } from "../components/ModalShell";
 import { DeleteConfirm } from "../components/DeleteConfirm";
 import { useToast, ToastList } from "../components/Toast";
 import { Label, inputCls, SearchInput, AddButton, EditButton, DeleteButton, InlineStatusSelect } from "../components/ui";
-
-// ── Types ─────────────────────────────────────────────────────────────────────
-
-type SupplierStatus = "Active" | "Warning" | "Inactive";
-
-type Supplier = {
-  id: string;
-  name: string;
-  contact: string;
-  email: string;
-  phone: string;
-  country: string;
-  leadTime: string;
-  materials: string[];
-  onTimeRate: number;
-  status: SupplierStatus;
-};
+import {
+  getSuppliers,
+  addSupplier,
+  updateSupplier,
+  deleteSupplier,
+  changeSupplierStatus,
+  type Supplier,
+  type SupplierStatus,
+} from "./actions";
 
 // ── Seed data ─────────────────────────────────────────────────────────────────
 
@@ -56,10 +48,6 @@ const EMPTY_FORM: FormState = {
   leadTime: "", materials: [], onTimeRate: 90, status: "Active",
 };
 
-function nextId(items: Supplier[]) {
-  const nums = items.map((s) => parseInt(s.id.replace("SUP-", ""), 10)).filter((n) => !isNaN(n));
-  return `SUP-${String(Math.max(0, ...nums) + 1).padStart(3, "0")}`;
-}
 
 function supplierToForm(s: Supplier): FormState {
   return { name: s.name, contact: s.contact, email: s.email, phone: s.phone, country: s.country, leadTime: s.leadTime, materials: [...s.materials], onTimeRate: s.onTimeRate, status: s.status };
@@ -159,14 +147,33 @@ function SupplierForm({ mode, form, onChange, onSave, onClose }: {
 // ── Page ──────────────────────────────────────────────────────────────────────
 
 export default function SuppliersPage() {
-  const [items, setItems]         = useState<Supplier[]>(INITIAL_SUPPLIERS);
+  const [items, setItems]         = useState<Supplier[]>([]);
   const [search, setSearch]       = useState("");
   const [statusFilter, setStatus] = useState<SupplierStatus | "All">("All");
   const [formMode, setFormMode]   = useState<"add" | "edit" | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm]           = useState<FormState>(EMPTY_FORM);
   const [deleteId, setDeleteId]   = useState<string | null>(null);
+  const [loading, setLoading]     = useState(true);
+  const [error, setError]         = useState<string | null>(null);
   const { toasts, showToast }     = useToast();
+
+  // Load suppliers from database on mount
+  useEffect(() => {
+    (async () => {
+      try {
+        setLoading(true);
+        setError(null);
+        const data = await getSuppliers();
+        setItems(data);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Failed to load suppliers");
+        showToast("Error loading suppliers", "error");
+      } finally {
+        setLoading(false);
+      }
+    })();
+  }, [showToast]);
 
   const filtered = items.filter((s) => {
     const q = search.toLowerCase();
@@ -190,35 +197,62 @@ export default function SuppliersPage() {
   function openEdit(s: Supplier) { setForm(supplierToForm(s)); setEditingId(s.id); setFormMode("edit"); }
   function closeForm() { setFormMode(null); setEditingId(null); }
 
-  function saveItem() {
+  async function saveItem() {
     if (!form.name.trim() || !form.contact.trim() || !form.email.trim()) return;
     const cleaned: FormState = { ...form, materials: form.materials.filter((m) => m.trim()) };
-    if (formMode === "add") {
-      setItems((prev) => [...prev, { id: nextId(prev), ...cleaned }]);
-      showToast("Supplier added.");
-    } else if (editingId) {
-      setItems((prev) => prev.map((s) => s.id === editingId ? { ...s, ...cleaned } : s));
-      showToast("Supplier updated.");
+    try {
+      if (formMode === "add") {
+        const newSupplier = await addSupplier(cleaned);
+        setItems((prev) => [...prev, newSupplier]);
+        showToast("Supplier added.");
+      } else if (editingId) {
+        const updated = await updateSupplier(editingId, cleaned);
+        setItems((prev) => prev.map((s) => s.id === editingId ? updated : s));
+        showToast("Supplier updated.");
+      }
+      closeForm();
+    } catch (err) {
+      showToast(err instanceof Error ? err.message : "Operation failed", "error");
     }
-    closeForm();
   }
 
-  function changeStatus(id: string, status: SupplierStatus) {
-    setItems((prev) => prev.map((s) => s.id === id ? { ...s, status } : s));
-    showToast("Status updated.");
+  async function changeStatus(id: string, status: SupplierStatus) {
+    try {
+      const updated = await changeSupplierStatus(id, status);
+      setItems((prev) => prev.map((s) => s.id === id ? updated : s));
+      showToast("Status updated.");
+    } catch (err) {
+      showToast(err instanceof Error ? err.message : "Status update failed", "error");
+    }
   }
 
-  function confirmDelete() {
-    const name = items.find((s) => s.id === deleteId)?.name ?? "Supplier";
-    setItems((prev) => prev.filter((s) => s.id !== deleteId));
-    setDeleteId(null);
-    showToast(`"${name}" deleted.`);
+  async function confirmDelete() {
+    if (!deleteId) return;
+    try {
+      const name = items.find((s) => s.id === deleteId)?.name ?? "Supplier";
+      await deleteSupplier(deleteId);
+      setItems((prev) => prev.filter((s) => s.id !== deleteId));
+      setDeleteId(null);
+      showToast(`"${name}" deleted.`);
+    } catch (err) {
+      showToast(err instanceof Error ? err.message : "Delete failed", "error");
+    }
   }
 
   const deletingItem = items.find((s) => s.id === deleteId);
 
   return (
     <div className="px-8 py-6 space-y-6">
+      {loading && (
+        <div className="bg-blue-900/50 border border-blue-800 text-blue-300 px-4 py-3 rounded-lg text-sm">
+          Loading suppliers...
+        </div>
+      )}
+      {error && (
+        <div className="bg-red-900/50 border border-red-800 text-red-300 px-4 py-3 rounded-lg text-sm">
+          {error}
+        </div>
+      )}
 
       {/* Summary strip */}
       <div className="grid grid-cols-4 gap-4">
