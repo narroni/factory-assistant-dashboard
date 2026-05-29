@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { ModalShell } from "../components/ModalShell";
 import { DeleteConfirm } from "../components/DeleteConfirm";
 import { useToast, ToastList } from "../components/Toast";
@@ -9,41 +9,15 @@ import {
   SearchInput, AddButton, EditButton, DeleteButton,
   InlineStatusSelect,
 } from "../components/ui";
-
-// ── Types ─────────────────────────────────────────────────────────────────────
-
-type MaterialStatus = "In Stock" | "Low Stock" | "Out of Stock";
-
-type Material = {
-  id: string;
-  name: string;
-  code: string;
-  category: string;
-  quantity: number;
-  unit: string;
-  supplier: string;
-  status: MaterialStatus;
-};
-
-// ── Seed data ─────────────────────────────────────────────────────────────────
-
-const INITIAL_MATERIALS: Material[] = [
-  { id: "M-001",  name: "Carbon Fiber Fabric 600g/m²", code: "CF-600",   category: "Composite",     quantity: 1240, unit: "m²",  supplier: "TorayComposite", status: "In Stock"    },
-  { id: "M-002",  name: "Epoxy Resin LR135",           code: "EP-135",   category: "Chemical",      quantity: 850,  unit: "kg",  supplier: "Hexion GmbH",    status: "In Stock"    },
-  { id: "M-003",  name: "Fiberglass Woven 450g/m²",    code: "FG-450",   category: "Composite",     quantity: 2100, unit: "m²",  supplier: "FiberCo SA",     status: "In Stock"    },
-  { id: "M-004",  name: "Balsa Wood Core 80kg/m³",     code: "BW-80",    category: "Core Material", quantity: 45,   unit: "m³",  supplier: "3A Composites",  status: "Low Stock"   },
-  { id: "M-005",  name: "Steel Sheet D2 3mm",          code: "SS-D2-3",  category: "Metal",         quantity: 420,  unit: "kg",  supplier: "Metalmec SRL",   status: "In Stock"    },
-  { id: "M-006",  name: "Boron Steel 27MnCrB5",        code: "BS-27",    category: "Metal",         quantity: 680,  unit: "kg",  supplier: "Metalmec SRL",   status: "In Stock"    },
-  { id: "M-007",  name: "Inconel 718 Bar",             code: "IN-718",   category: "Superalloy",    quantity: 8,    unit: "kg",  supplier: "Special Metals", status: "Out of Stock" },
-  { id: "M-008",  name: "Nomex Honeycomb 48kg/m³",     code: "NH-48",    category: "Core Material", quantity: 28,   unit: "m²",  supplier: "Hexcel Corp",    status: "Low Stock"   },
-  { id: "M-009",  name: "Copper Wire 2.5mm",           code: "CW-2.5",   category: "Wire",          quantity: 18,   unit: "kg",  supplier: "CopperCo",       status: "Out of Stock" },
-  { id: "M-010",  name: "Zinc Phosphate Coating",      code: "ZP-100",   category: "Chemical",      quantity: 5,    unit: "L",   supplier: "ChemPro AG",     status: "Out of Stock" },
-  { id: "M-011",  name: "M8 Hex Bolt A2-70",           code: "M8-A2",    category: "Fastener",      quantity: 120,  unit: "pcs", supplier: "BoltMaster",     status: "Low Stock"   },
-  { id: "M-012",  name: "PU Foam Core 40kg/m³",        code: "PU-40",    category: "Core Material", quantity: 95,   unit: "m³",  supplier: "Recticel NV",    status: "In Stock"    },
-  { id: "M-013",  name: "Manganese Steel X120Mn12",    code: "MN-120",   category: "Metal",         quantity: 310,  unit: "kg",  supplier: "Metalmec SRL",   status: "In Stock"    },
-  { id: "M-014",  name: "Bimetal Strip M42",           code: "BM-M42",   category: "Metal",         quantity: 1800, unit: "m",   supplier: "Lenox Tools",    status: "In Stock"    },
-  { id: "M-015",  name: "Tool Steel H13 Bar",          code: "TS-H13",   category: "Metal",         quantity: 55,   unit: "kg",  supplier: "Metalmec SRL",   status: "Low Stock"   },
-];
+import {
+  getMaterials,
+  addMaterial,
+  updateMaterial,
+  deleteMaterial,
+  changeMaterialStatus,
+  type Material,
+  type MaterialStatus,
+} from "./actions";
 
 const CATEGORIES  = ["Composite", "Chemical", "Core Material", "Metal", "Superalloy", "Wire", "Fastener", "Other"];
 const UNITS: string[]            = ["kg", "m²", "m³", "m", "L", "pcs", "t"];
@@ -63,11 +37,6 @@ const EMPTY_FORM: FormState = {
   name: "", code: "", category: "Composite",
   quantity: 0, unit: "kg", supplier: "", status: "In Stock",
 };
-
-function nextId(items: Material[]) {
-  const nums = items.map((m) => parseInt(m.id.replace("M-", ""), 10)).filter((n) => !isNaN(n));
-  return `M-${String(Math.max(0, ...nums) + 1).padStart(3, "0")}`;
-}
 
 // ── Material Form Modal ───────────────────────────────────────────────────────
 
@@ -117,7 +86,7 @@ function MaterialModal({
 // ── Page ──────────────────────────────────────────────────────────────────────
 
 export default function MaterialsPage() {
-  const [items, setItems]         = useState<Material[]>(INITIAL_MATERIALS);
+  const [items, setItems]         = useState<Material[]>([]);
   const [search, setSearch]       = useState("");
   const [categoryFilter, setCat]  = useState("All");
   const [statusFilter, setStatus] = useState("All");
@@ -125,9 +94,28 @@ export default function MaterialsPage() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm]           = useState<FormState>(EMPTY_FORM);
   const [deleteId, setDeleteId]   = useState<string | null>(null);
+  const [loading, setLoading]     = useState(true);
+  const [error, setError]         = useState<string | null>(null);
   const { toasts, showToast }     = useToast();
 
-  const categories = ["All", ...Array.from(new Set(INITIAL_MATERIALS.map((m) => m.category))).sort()];
+  // Load materials from database on mount
+  useEffect(() => {
+    (async () => {
+      try {
+        setLoading(true);
+        setError(null);
+        const data = await getMaterials();
+        setItems(data);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Failed to load materials");
+        showToast("Error loading materials", "error");
+      } finally {
+        setLoading(false);
+      }
+    })();
+  }, [showToast]);
+
+  const categories = ["All", ...Array.from(new Set(items.map((m) => m.category))).sort()];
 
   const filtered = items.filter((m) => {
     const q = search.toLowerCase();
@@ -159,34 +147,61 @@ export default function MaterialsPage() {
 
   function closeForm() { setFormMode(null); setEditingId(null); }
 
-  function saveItem() {
+  async function saveItem() {
     if (!form.name.trim() || !form.code.trim()) return;
-    if (formMode === "add") {
-      setItems((prev) => [...prev, { id: nextId(prev), ...form }]);
-      showToast("Material added successfully.");
-    } else if (editingId) {
-      setItems((prev) => prev.map((m) => m.id === editingId ? { ...m, ...form } : m));
-      showToast("Material updated.");
+    try {
+      if (formMode === "add") {
+        const newMaterial = await addMaterial(form);
+        setItems((prev) => [...prev, newMaterial]);
+        showToast("Material added successfully.");
+      } else if (editingId) {
+        const updated = await updateMaterial(editingId, form);
+        setItems((prev) => prev.map((m) => m.id === editingId ? updated : m));
+        showToast("Material updated.");
+      }
+      closeForm();
+    } catch (err) {
+      showToast(err instanceof Error ? err.message : "Operation failed", "error");
     }
-    closeForm();
   }
 
-  function changeStatus(id: string, status: MaterialStatus) {
-    setItems((prev) => prev.map((m) => m.id === id ? { ...m, status } : m));
-    showToast("Status updated.");
+  async function changeStatus(id: string, status: MaterialStatus) {
+    try {
+      const updated = await changeMaterialStatus(id, status);
+      setItems((prev) => prev.map((m) => m.id === id ? updated : m));
+      showToast("Status updated.");
+    } catch (err) {
+      showToast(err instanceof Error ? err.message : "Status update failed", "error");
+    }
   }
 
-  function confirmDelete() {
-    const name = items.find((m) => m.id === deleteId)?.name ?? "Material";
-    setItems((prev) => prev.filter((m) => m.id !== deleteId));
-    setDeleteId(null);
-    showToast(`"${name}" deleted.`);
+  async function confirmDelete() {
+    if (!deleteId) return;
+    try {
+      const name = items.find((m) => m.id === deleteId)?.name ?? "Material";
+      await deleteMaterial(deleteId);
+      setItems((prev) => prev.filter((m) => m.id !== deleteId));
+      setDeleteId(null);
+      showToast(`"${name}" deleted.`);
+    } catch (err) {
+      showToast(err instanceof Error ? err.message : "Delete failed", "error");
+    }
   }
 
   const deletingItem = items.find((m) => m.id === deleteId);
 
   return (
     <div className="px-8 py-6 space-y-6">
+      {loading && (
+        <div className="bg-blue-900/50 border border-blue-800 text-blue-300 px-4 py-3 rounded-lg text-sm">
+          Loading materials...
+        </div>
+      )}
+      {error && (
+        <div className="bg-red-900/50 border border-red-800 text-red-300 px-4 py-3 rounded-lg text-sm">
+          {error}
+        </div>
+      )}
 
       {/* KPI strip */}
       <div className="grid grid-cols-4 gap-4">
