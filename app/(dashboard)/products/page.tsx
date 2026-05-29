@@ -1,13 +1,13 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { ModalShell } from "../components/ModalShell";
-import { DeleteConfirm } from "../components/DeleteConfirm";
-import { useToast, ToastList } from "../components/Toast";
+import { ModalShell } from "../../components/ModalShell";
+import { DeleteConfirm } from "../../components/DeleteConfirm";
+import { useToast, ToastList } from "../../components/Toast";
 import {
   Label, TextInput, NumberInput, SelectInput,
   SearchInput, AddButton, InlineStatusSelect,
-} from "../components/ui";
+} from "../../components/ui";
 import {
   getProducts,
   addProduct,

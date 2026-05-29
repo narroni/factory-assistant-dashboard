@@ -1,8 +1,8 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { ModalShell } from "../components/ModalShell";
-import { useToast, ToastList } from "../components/Toast";
+import { ModalShell } from "../../components/ModalShell";
+import { useToast, ToastList } from "../../components/Toast";
 import { getAllReports, type Report } from "./actions";
 
 function downloadCSV(filename: string, headers: string[], rows: string[][]) {

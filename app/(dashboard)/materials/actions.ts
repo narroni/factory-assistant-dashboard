@@ -1,6 +1,6 @@
 "use server";
 
-import { prisma } from "../lib/prisma";
+import { prisma } from "../../lib/prisma";
 
 export type MaterialStatus = "In Stock" | "Low Stock" | "Out of Stock";
 

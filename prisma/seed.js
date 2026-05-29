@@ -1,9 +1,19 @@
 require("dotenv/config");
 const { PrismaClient } = require("@prisma/client");
+const crypto = require("crypto");
+const { promisify } = require("util");
+
+const pbkdf2 = promisify(crypto.pbkdf2);
 
 const prisma = new PrismaClient({
   log: ["error"],
 });
+
+async function hashPassword(password) {
+  const salt = crypto.randomBytes(16).toString("hex");
+  const derivedKey = await pbkdf2(password, salt, 100000, 64, "sha256");
+  return `${salt}:${derivedKey.toString("hex")}`;
+}
 
 async function main() {
   // Clear existing data
@@ -17,12 +27,37 @@ async function main() {
   await prisma.supplier.deleteMany();
   await prisma.user.deleteMany();
 
-  // Create users
+  // Create demo users
+  const adminHash = await hashPassword("password123");
+  const workerHash = await hashPassword("password123");
+  const viewerHash = await hashPassword("password123");
+
   const adminUser = await prisma.user.create({
     data: {
       name: "Admin User",
-      email: "admin@factory.local",
+      email: "admin@narko.local",
+      passwordHash: adminHash,
       role: "ADMIN",
+      status: "ACTIVE",
+    },
+  });
+
+  await prisma.user.create({
+    data: {
+      name: "Worker User",
+      email: "worker@narko.local",
+      passwordHash: workerHash,
+      role: "WORKER",
+      status: "ACTIVE",
+    },
+  });
+
+  await prisma.user.create({
+    data: {
+      name: "Viewer User",
+      email: "viewer@narko.local",
+      passwordHash: viewerHash,
+      role: "VIEWER",
       status: "ACTIVE",
     },
   });
