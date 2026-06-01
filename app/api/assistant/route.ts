@@ -121,7 +121,7 @@ export async function POST(req: NextRequest) {
   const quick = shortCircuit(question, language);
   if (quick) {
     if (chatId) {
-      await persistAssistantMessage({ chatId, content: quick, ollamaUsed: false });
+      await persistAssistantMessage({ chatId, content: quick, ollamaUsed: false, status: "COMPLETED" });
     }
     await logInteraction({ userId: user.id, prompt: question, response: quick, ollamaUsed: false, proposals: [] });
     return NextResponse.json({
@@ -130,12 +130,27 @@ export async function POST(req: NextRequest) {
     } satisfies AssistantResponse);
   }
 
+  // ── Create PENDING assistant message (before generation) ────────────────────
+  let assistantMessageId: string | null = null;
+  if (chatId) {
+    const pendingMsg = await prisma.assistantMessage.create({
+      data: { chatId, role: "assistant", content: "", status: "PENDING" },
+    });
+    assistantMessageId = pendingMsg.id;
+  }
+
   // ── Load factory context ───────────────────────────────────────────────────
   let ctx;
   try {
     ctx = await loadFactoryContext();
   } catch (err) {
     console.error("[assistant] factory context load failed:", err);
+    if (assistantMessageId && chatId) {
+      await prisma.assistantMessage.update({
+        where: { id: assistantMessageId },
+        data: { status: "FAILED", content: "Failed to load factory data" },
+      });
+    }
     return NextResponse.json({ error: "Failed to load factory data" }, { status: 500 });
   }
 
@@ -181,15 +196,8 @@ export async function POST(req: NextRequest) {
   const answer = result.ok ? result.answer : result.fallback;
   const proposals: ActionProposal[] = result.ok ? result.proposals : [];
 
-  // ── Persist AI message ─────────────────────────────────────────────────────
-  if (chatId) {
-    await persistAssistantMessage({ chatId, content: answer, ollamaUsed: result.ok, proposals });
-    // Touch updatedAt
-    await prisma.assistantChat.update({ where: { id: chatId }, data: {} });
-  }
-
   // ── Persist action proposals ───────────────────────────────────────────────
-  const savedRequestIds: string[] = [];
+  let savedRequestIds: string[] = [];
   if (proposals.length > 0 && (user.role === "ADMIN" || user.role === "WORKER")) {
     for (const p of proposals) {
       try {
@@ -207,6 +215,29 @@ export async function POST(req: NextRequest) {
         console.error("[assistant] failed to save action request:", err);
       }
     }
+  }
+
+  // ── Persist or update AI message ────────────────────────────────────────────
+  if (chatId && assistantMessageId) {
+    await prisma.assistantMessage.update({
+      where: { id: assistantMessageId },
+      data: {
+        content: answer,
+        ollamaUsed: result.ok,
+        proposals: proposals.length > 0
+          ? (proposals as unknown as import("@prisma/client").Prisma.InputJsonValue)
+          : undefined,
+        savedRequestIds: savedRequestIds.length > 0
+          ? (savedRequestIds as unknown as import("@prisma/client").Prisma.InputJsonValue)
+          : undefined,
+        status: "COMPLETED",
+      },
+    });
+    // Touch updatedAt
+    await prisma.assistantChat.update({ where: { id: chatId }, data: {} });
+  } else if (chatId && !assistantMessageId) {
+    // Fallback for non-persisted mode
+    await persistAssistantMessage({ chatId, content: answer, ollamaUsed: result.ok, proposals, savedRequestIds, status: "COMPLETED" });
   }
 
   await logInteraction({ userId: user.id, prompt: question, response: answer, ollamaUsed: result.ok, proposals });
@@ -246,12 +277,19 @@ export async function GET() {
 // ── Helpers ────────────────────────────────────────────────────────────────────
 
 async function persistAssistantMessage({
-  chatId, content, ollamaUsed, proposals = [],
+  chatId,
+  content,
+  ollamaUsed,
+  proposals = [],
+  savedRequestIds = [],
+  status = "COMPLETED",
 }: {
   chatId: string;
   content: string;
   ollamaUsed: boolean;
   proposals?: ActionProposal[];
+  savedRequestIds?: string[];
+  status?: "PENDING" | "COMPLETED" | "FAILED";
 }) {
   await prisma.assistantMessage.create({
     data: {
@@ -262,6 +300,10 @@ async function persistAssistantMessage({
       proposals: proposals.length > 0
         ? (proposals as unknown as import("@prisma/client").Prisma.InputJsonValue)
         : undefined,
+      savedRequestIds: savedRequestIds.length > 0
+        ? (savedRequestIds as unknown as import("@prisma/client").Prisma.InputJsonValue)
+        : undefined,
+      status,
     },
   });
 }

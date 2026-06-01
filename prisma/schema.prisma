@@ -74,6 +74,7 @@ model User {
   auditLogs           AuditLog[]
   aiActionRequests    AIActionRequest[]  @relation("AIActionCreator")
   aiActionApprovals   AIActionRequest[]  @relation("AIActionApprover")
+  executedActions     ExecutedAction[]
   aiInteractionLogs   AIInteractionLog[]
   assistantChats      AssistantChat[]
   factoryKnowledge    FactoryKnowledge[]
@@ -267,19 +268,29 @@ model AssistantChat {
   @@map("assistant_chats")
 }
 
+enum AssistantMessageStatus {
+  PENDING
+  COMPLETED
+  FAILED
+}
+
 model AssistantMessage {
-  id         String @id @default(cuid())
-  chatId     String
-  role       String  // "user" | "assistant"
-  content    String
-  ollamaUsed Boolean @default(false)
-  proposals  Json?
+  id              String @id @default(cuid())
+  chatId          String
+  role            String  // "user" | "assistant"
+  content         String
+  ollamaUsed      Boolean @default(false)
+  proposals       Json?
+  savedRequestIds Json?   // array of AIActionRequest IDs
+  status          AssistantMessageStatus @default(COMPLETED)
 
   chat       AssistantChat @relation(fields: [chatId], references: [id], onDelete: Cascade)
 
   createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
 
   @@index([chatId])
+  @@index([status])
   @@map("assistant_messages")
 }
 
@@ -304,12 +315,36 @@ model AIActionRequest {
 
   createdByUser User  @relation("AIActionCreator",  fields: [createdByUserId], references: [id])
   approver      User? @relation("AIActionApprover", fields: [approvedBy],      references: [id])
+  executedAction ExecutedAction?
 
   createdAt DateTime @default(now())
 
   @@index([status])
   @@index([createdByUserId])
   @@map("ai_action_requests")
+}
+
+// ── Executed Action ───────────────────────────────────────────────────────────
+
+model ExecutedAction {
+  id              String   @id @default(cuid())
+  requestId       String   @unique
+  actionType      String
+  outputType      String   // "xlsx" | "pdf" | "text" | "json"
+  outputFile      String?  // file path or URL
+  outputContent   String?  // for text-based outputs
+  executedBy      String
+  metadata        Json?    // action-specific metadata
+
+  request         AIActionRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  executor        User            @relation(fields: [executedBy], references: [id])
+
+  createdAt       DateTime @default(now())
+
+  @@index([requestId])
+  @@index([actionType])
+  @@index([createdAt])
+  @@map("executed_actions")
 }
 
 // ── AI Interaction Log ────────────────────────────────────────────────────────

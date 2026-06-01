@@ -16,6 +16,7 @@ export const dictionaries: Record<Language, Record<string, string>> = {
     "nav.ai_group": "AI Copilot",
     "nav.ai_config": "AI Configuration",
     "nav.ai_knowledge": "Knowledge Base",
+    "nav.outputs": "Outputs",
 
     // Page titles
     "page.overview": "Overview",
@@ -29,6 +30,7 @@ export const dictionaries: Record<Language, Record<string, string>> = {
     "page.assistant": "Assistant",
     "page.ai_requests": "AI Requests",
     "page.ai_history": "AI History",
+    "page.outputs": "Generated Outputs",
 
     // Page subtitles
     "subtitle.overview": "Factory operations at a glance",
@@ -118,6 +120,7 @@ export const dictionaries: Record<Language, Record<string, string>> = {
     "nav.ai_group": "KI-Copilot",
     "nav.ai_config": "KI-Konfiguration",
     "nav.ai_knowledge": "Wissensdatenbank",
+    "nav.outputs": "Ausgaben",
 
     // Page titles
     "page.overview": "Übersicht",
@@ -131,6 +134,7 @@ export const dictionaries: Record<Language, Record<string, string>> = {
     "page.assistant": "Assistent",
     "page.ai_requests": "KI-Anfragen",
     "page.ai_history": "KI-Verlauf",
+    "page.outputs": "Generierte Ausgaben",
 
     // Page subtitles
     "subtitle.overview": "Fabrikbetrieb auf einen Blick",

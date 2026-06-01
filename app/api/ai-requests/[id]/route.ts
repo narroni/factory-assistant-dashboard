@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSessionUser } from "../../../lib/session";
 import { prisma } from "../../../lib/prisma";
+import { executeAction } from "../../../lib/action-executor";
 
 type Ctx = { params: Promise<{ id: string }> };
 
@@ -30,6 +31,21 @@ export async function PATCH(req: NextRequest, ctx: Ctx) {
     return NextResponse.json({ error: "Only APPROVED requests can be executed" }, { status: 409 });
 
   const now = new Date();
+
+  // Handle execution
+  if (action === "execute") {
+    const execResult = await executeAction({
+      requestId: id,
+      actionType: record.actionType,
+      payload: record.payload as Record<string, unknown>,
+      userId: user.id,
+    });
+
+    if (!execResult.success) {
+      return NextResponse.json({ error: `Execution failed: ${execResult.error}` }, { status: 500 });
+    }
+  }
+
   const updated = await prisma.aIActionRequest.update({
     where: { id },
     data:
@@ -39,6 +55,7 @@ export async function PATCH(req: NextRequest, ctx: Ctx) {
     include: {
       createdByUser: { select: { name: true, email: true } },
       approver:      { select: { name: true } },
+      executedAction: { select: { id: true, outputType: true, outputFile: true, createdAt: true } },
     },
   });
 

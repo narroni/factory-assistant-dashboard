@@ -13,6 +13,7 @@ type KnowledgeFile = {
   enabled: boolean;
   uploadedBy: string;
   user: { name: string };
+  metadata?: Record<string, unknown>;
   createdAt: string;
 };
 
@@ -21,6 +22,7 @@ export default function AIKnowledgePage() {
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
   const [message, setMessage] = useState("");
+  const [previewId, setPreviewId] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const router = useRouter();
 
@@ -190,7 +192,15 @@ export default function AIKnowledgePage() {
                       {file.enabled ? "Enabled" : "Disabled"}
                     </button>
                   </td>
-                  <td className="px-5 py-3 text-right">
+                  <td className="px-5 py-3 text-right flex items-center justify-end gap-2">
+                    {file.fileType === "xlsx" && (
+                      <button
+                        onClick={() => setPreviewId(previewId === file.id ? null : file.id)}
+                        className="text-xs text-blue-400 hover:text-blue-300 transition-colors"
+                      >
+                        {previewId === file.id ? "Hide" : "Preview"}
+                      </button>
+                    )}
                     <button
                       onClick={() => deleteFile(file.id)}
                       className="text-xs text-red-400 hover:text-red-300 transition-colors"
@@ -202,6 +212,50 @@ export default function AIKnowledgePage() {
               ))}
             </tbody>
           </table>
+
+          {/* XLSX Preview Modal */}
+          {previewId && (
+            <>
+              <div className="fixed inset-0 z-40 bg-black/50" onClick={() => setPreviewId(null)} />
+              <div className="fixed inset-4 z-50 flex flex-col bg-zinc-900 border border-zinc-700 rounded-xl overflow-hidden">
+                <div className="flex items-center justify-between px-6 py-4 border-b border-zinc-800 shrink-0">
+                  <h2 className="text-sm font-semibold text-zinc-100">
+                    {files.find((f) => f.id === previewId)?.filename} — Parsed Preview
+                  </h2>
+                  <button
+                    onClick={() => setPreviewId(null)}
+                    className="text-zinc-500 hover:text-zinc-300 transition-colors"
+                  >
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <line x1="18" y1="6" x2="6" y2="18" />
+                      <line x1="6" y1="6" x2="18" y2="18" />
+                    </svg>
+                  </button>
+                </div>
+                <div className="flex-1 overflow-auto">
+                  <pre className="text-xs text-zinc-300 whitespace-pre-wrap font-mono p-6">
+                    {files.find((f) => f.id === previewId)?.content}
+                  </pre>
+                </div>
+                <div className="px-6 py-3 border-t border-zinc-800 flex items-center justify-between text-xs text-zinc-500">
+                  <span>
+                    Extracted from{" "}
+                    {files.find((f) => f.id === previewId)?.metadata
+                      ? ((files.find((f) => f.id === previewId)?.metadata as Record<string, unknown>)
+                          .totalRows as number) ?? "unknown"
+                      : "0"}{" "}
+                    rows
+                  </span>
+                  <button
+                    onClick={() => setPreviewId(null)}
+                    className="text-zinc-400 hover:text-zinc-200 transition-colors"
+                  >
+                    Close
+                  </button>
+                </div>
+              </div>
+            </>
+          )}
         </div>
       )}
 

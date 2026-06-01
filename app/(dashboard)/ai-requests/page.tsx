@@ -13,6 +13,12 @@ type ActionRequest = {
   status: "PENDING" | "APPROVED" | "REJECTED" | "EXECUTED";
   approvedBy?: string;
   approvedAt?: string;
+  executedAction?: {
+    id: string;
+    outputType: string;
+    outputFile: string;
+    createdAt: string;
+  };
   createdAt: string;
 };
 
@@ -72,7 +78,7 @@ export default function AIRequestsPage() {
       await fetch(`/api/ai-requests/${id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ status: "APPROVED" }),
+        body: JSON.stringify({ action: "approve" }),
       });
       setRequests((prev) => prev.map((r) =>
         r.id === id ? { ...r, status: "APPROVED" as const } : r
@@ -88,7 +94,7 @@ export default function AIRequestsPage() {
       await fetch(`/api/ai-requests/${id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ status: "REJECTED" }),
+        body: JSON.stringify({ action: "reject" }),
       });
       setRequests((prev) => prev.map((r) =>
         r.id === id ? { ...r, status: "REJECTED" as const } : r
@@ -101,13 +107,16 @@ export default function AIRequestsPage() {
   async function execute(id: string) {
     setApproving(id);
     try {
-      await fetch(`/api/ai-requests/${id}`, {
+      const res = await fetch(`/api/ai-requests/${id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ status: "EXECUTED" }),
+        body: JSON.stringify({ action: "execute" }),
       });
+      const updated = await res.json();
       setRequests((prev) => prev.map((r) =>
-        r.id === id ? { ...r, status: "EXECUTED" as const } : r
+        r.id === id
+          ? { ...r, status: "EXECUTED" as const, executedAction: updated.executedAction }
+          : r
       ));
     } finally {
       setApproving(null);
@@ -254,6 +263,33 @@ export default function AIRequestsPage() {
                                   >
                                     {approving === req.id ? "…" : "✕ Reject"}
                                   </button>
+                                </div>
+                              )}
+                              {req.status === "EXECUTED" && req.executedAction && (
+                                <div className="pt-2 border-t border-zinc-800 space-y-2">
+                                  <div className="bg-emerald-950/20 border border-emerald-900/30 rounded-lg p-3">
+                                    <p className="text-xs font-medium text-emerald-400 mb-2">Output Generated</p>
+                                    <div className="flex items-center justify-between">
+                                      <div>
+                                        <p className="text-xs text-zinc-300">{req.executedAction.outputFile}</p>
+                                        <p className="text-xs text-zinc-500 mt-0.5">Type: {req.executedAction.outputType}</p>
+                                      </div>
+                                      <button
+                                        onClick={() => {
+                                          const url = `/api/outputs/${req.executedAction!.id}/download`;
+                                          const a = document.createElement("a");
+                                          a.href = url;
+                                          a.download = req.executedAction!.outputFile;
+                                          document.body.appendChild(a);
+                                          a.click();
+                                          document.body.removeChild(a);
+                                        }}
+                                        className="text-xs text-emerald-400 hover:text-emerald-300 bg-emerald-950/30 hover:bg-emerald-950/50 border border-emerald-900/50 px-3 py-1.5 rounded-lg transition-colors"
+                                      >
+                                        Download
+                                      </button>
+                                    </div>
+                                  </div>
                                 </div>
                               )}
                             </div>

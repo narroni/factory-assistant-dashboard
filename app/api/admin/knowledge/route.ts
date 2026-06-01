@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSessionUser } from "../../../lib/session";
 import { prisma } from "../../../lib/prisma";
+import { parseXLSX, type XLSXParseResult } from "../../../lib/xlsx-parser";
 
 // GET /api/admin/knowledge — list all knowledge files
 export async function GET(req: NextRequest) {
@@ -30,16 +31,32 @@ export async function POST(req: NextRequest) {
     const buffer = Buffer.from(bytes);
     const fileType = getFileType(file.name);
     let content = "";
+    let metadata: Record<string, unknown> = {
+      originalSize: file.size,
+      uploadedAt: new Date().toISOString(),
+    };
 
     if (fileType === "txt") {
       content = buffer.toString("utf-8");
     } else if (fileType === "csv") {
       content = buffer.toString("utf-8");
     } else if (fileType === "xlsx") {
-      // For now, store filename and size; actual parsing happens on upload
-      content = `[XLSX file: ${file.name}]\nSize: ${Math.round(file.size / 1024)} KB\nPlease parse manually or implement xlsx parser.`;
+      // Parse XLSX and extract structured summary
+      const parseResult: XLSXParseResult = parseXLSX(buffer);
+      content = parseResult.summary;
+      metadata = {
+        ...metadata,
+        sheets: parseResult.sheets.map((s) => ({
+          name: s.name,
+          headers: s.headers,
+          rowCount: s.rowCount,
+        })),
+        totalRows: parseResult.rowCount,
+        parseStatus: "success",
+      };
     } else if (fileType === "pdf") {
-      content = `[PDF file: ${file.name}]\nSize: ${Math.round(file.size / 1024)} KB\nPDF parsing available later.`;
+      content = `[PDF file: ${file.name}]\nSize: ${Math.round(file.size / 1024)} KB\nPDF text extraction available in future updates.`;
+      metadata = { ...metadata, parseStatus: "pending" };
     }
 
     const knowledge = await prisma.factoryKnowledge.create({
@@ -49,10 +66,7 @@ export async function POST(req: NextRequest) {
         fileSize: file.size,
         content: content.slice(0, 50000), // Limit to 50k chars
         uploadedBy: user.id,
-        metadata: {
-          originalSize: file.size,
-          uploadedAt: new Date().toISOString(),
-        },
+        metadata: metadata as unknown as import("@prisma/client").Prisma.InputJsonValue,
       },
     });
 

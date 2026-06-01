@@ -31,6 +31,7 @@ type ChatMessage = {
   ollamaUsed?: boolean;
   proposals?: Proposal[];
   createdAt?: string;
+  status?: "PENDING" | "COMPLETED" | "FAILED";
   // local-only
   loading?: boolean;
   respondedAt?: string;
@@ -148,8 +149,42 @@ const ACTION_LABELS: Record<string, string> = {
   generate_report: "Generate Report", export_data: "Export Data",
 };
 
+const STATUS_COLORS: Record<string, { bg: string; text: string }> = {
+  PENDING: { bg: "bg-amber-900/40", text: "text-amber-400" },
+  APPROVED: { bg: "bg-blue-900/40", text: "text-blue-400" },
+  REJECTED: { bg: "bg-red-900/40", text: "text-red-400" },
+  EXECUTED: { bg: "bg-emerald-900/40", text: "text-emerald-400" },
+};
+
 function ProposalCard({ proposal, requestId }: { proposal: Proposal; requestId?: string }) {
   const [open, setOpen] = useState(false);
+  const [status, setStatus] = useState<string>("PENDING");
+  const [loading, setLoading] = useState(!!requestId);
+
+  useEffect(() => {
+    if (!requestId) return;
+    const fetchStatus = async () => {
+      try {
+        const res = await fetch("/api/ai-requests/status", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ ids: [requestId] }),
+        });
+        const data = await res.json();
+        if (data.statuses?.[requestId]?.status) {
+          setStatus(data.statuses[requestId].status);
+        }
+      } catch (e) {
+        console.error("Failed to fetch request status:", e);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchStatus();
+  }, [requestId]);
+
+  const colors = STATUS_COLORS[status] ?? STATUS_COLORS.PENDING;
+
   return (
     <div className="border border-amber-800/50 bg-amber-950/20 rounded-lg p-3 space-y-2 mt-2">
       <div className="flex items-center justify-between gap-2">
@@ -157,7 +192,20 @@ function ProposalCard({ proposal, requestId }: { proposal: Proposal; requestId?:
           <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-amber-400 shrink-0"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
           <span className="text-xs font-medium text-amber-300">Proposed: {ACTION_LABELS[proposal.actionType] ?? proposal.actionType}</span>
         </div>
-        {requestId && <span className="text-xs bg-amber-900/40 border border-amber-800 text-amber-400 px-2 py-0.5 rounded-full whitespace-nowrap">Pending approval</span>}
+        {requestId && (
+          <div className="flex items-center gap-2">
+            <span className={`text-xs border px-2 py-0.5 rounded-full whitespace-nowrap border-amber-800 ${colors.bg} ${colors.text}`}>
+              {loading ? "…" : status.charAt(0) + status.slice(1).toLowerCase()}
+            </span>
+            <a
+              href={`/ai-requests?viewId=${requestId}`}
+              className="text-xs text-blue-400 hover:text-blue-300 transition-colors"
+              title="View request details"
+            >
+              →
+            </a>
+          </div>
+        )}
       </div>
       <p className="text-xs text-zinc-400 pl-4">{proposal.reasoning}</p>
       <button onClick={() => setOpen((o) => !o)} className="text-xs text-zinc-600 hover:text-zinc-400 pl-4 transition-colors">
@@ -178,17 +226,52 @@ function UserBubble({ text }: { text: string }) {
   );
 }
 
-function AssistantBubble({ msg }: { msg: ChatMessage }) {
-  if (msg.loading) {
+function AssistantBubble({ msg, onRetry }: { msg: ChatMessage; onRetry?: (msgId: string) => void }) {
+  const isPending = msg.status === "PENDING";
+  const isFailed = msg.status === "FAILED";
+
+  if (isPending) {
     return (
-      <div className="flex items-center gap-2">
-        <div className="w-6 h-6 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white shrink-0" style={{ fontSize: 11 }}>✦</div>
-        <div className="flex gap-1 px-3 py-2 bg-zinc-800 rounded-2xl rounded-tl-sm">
-          {[0,1,2].map((i) => <span key={i} className="w-1.5 h-1.5 bg-zinc-400 rounded-full animate-bounce" style={{ animationDelay: `${i*0.15}s` }}/>)}
+      <div className="space-y-2">
+        <div className="flex items-center gap-2">
+          <div className="w-6 h-6 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white shrink-0" style={{ fontSize: 11 }}>✦</div>
+          <span className="text-xs text-zinc-500">Factory Copilot</span>
+        </div>
+        <div className="flex items-center gap-2 pl-8">
+          <div className="flex gap-1 px-3 py-2 bg-zinc-800 rounded-2xl rounded-tl-sm">
+            {[0,1,2].map((i) => <span key={i} className="w-1.5 h-1.5 bg-zinc-400 rounded-full animate-bounce" style={{ animationDelay: `${i*0.15}s` }}/>)}
+          </div>
+          <span className="text-xs text-zinc-500">Generating response…</span>
         </div>
       </div>
     );
   }
+
+  if (isFailed) {
+    return (
+      <div className="space-y-2">
+        <div className="flex items-center gap-2">
+          <div className="w-6 h-6 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white shrink-0" style={{ fontSize: 11 }}>✦</div>
+          <span className="text-xs text-zinc-500">Factory Copilot</span>
+        </div>
+        <div className="pl-8 space-y-2">
+          <div className="bg-red-950/30 border border-red-900/50 rounded p-3 space-y-2">
+            <p className="text-xs text-red-400 font-medium">Failed to generate response</p>
+            <p className="text-xs text-red-300">{msg.content || "An error occurred while generating the assistant response."}</p>
+            {msg.id && onRetry && (
+              <button
+                onClick={() => onRetry(msg.id!)}
+                className="text-xs text-red-400 hover:text-red-300 underline transition-colors"
+              >
+                Try again
+              </button>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-2">
       <div className="flex items-center gap-2">
@@ -347,13 +430,15 @@ export default function AssistantPage() {
     setActiveChatId(id);
     const data = await (await fetch(`/api/chats/${id}`)).json();
     if (data.messages) {
-      setMessages(data.messages.map((m: { id: string; role: string; content: string; ollamaUsed: boolean; proposals?: Proposal[]; createdAt: string }) => ({
+      setMessages(data.messages.map((m: any) => ({
         id: m.id,
         role: m.role as "user" | "assistant",
         content: m.content,
         ollamaUsed: m.ollamaUsed,
         proposals: m.proposals as Proposal[] | undefined,
         createdAt: m.createdAt,
+        status: m.status as "PENDING" | "COMPLETED" | "FAILED" | undefined,
+        savedRequestIds: Array.isArray(m.savedRequestIds) ? m.savedRequestIds : [],
       })));
     }
   }
@@ -391,7 +476,7 @@ export default function AssistantPage() {
     setInput("");
     setSending(true);
     const userMsg: ChatMessage = { role: "user", content: q };
-    const loadingMsg: ChatMessage = { role: "assistant", content: "", loading: true };
+    const loadingMsg: ChatMessage = { role: "assistant", content: "", status: "PENDING" };
     setMessages((prev) => [...prev, userMsg, loadingMsg]);
 
     try {
@@ -416,6 +501,7 @@ export default function AssistantPage() {
         proposals: data.proposals,
         savedRequestIds: data.savedRequestIds,
         respondedAt: data.respondedAt,
+        status: "COMPLETED",
       };
       setMessages((prev) => {
         const next = [...prev];
@@ -428,6 +514,7 @@ export default function AssistantPage() {
         next[next.length - 1] = {
           role: "assistant", content: "Something went wrong. Please try again.",
           ollamaUsed: false,
+          status: "FAILED",
         };
         return next;
       });
@@ -436,6 +523,59 @@ export default function AssistantPage() {
       inputRef.current?.focus();
     }
   }
+
+  async function retryMessage(msgId: string) {
+    const msgIdx = messages.findIndex((m) => m.id === msgId);
+    if (msgIdx === -1) return;
+
+    const prevMsg = messages[msgIdx - 1];
+    if (prevMsg?.role === "user") {
+      setMessages((prev) => {
+        const next = prev.slice(0, msgIdx);
+        return next;
+      });
+      setSending(true);
+      await send(prevMsg.content);
+    }
+  }
+
+  // Poll for PENDING messages
+  useEffect(() => {
+    if (!activeChatId) return;
+
+    const interval = setInterval(async () => {
+      setMessages((prev) => {
+        // Only poll if there are PENDING messages
+        if (!prev.some((m) => m.status === "PENDING")) return prev;
+
+        (async () => {
+          try {
+            const res = await fetch(`/api/chats/${activeChatId}`);
+            const data = await res.json();
+            if (data.messages) {
+              const updated = data.messages.map((m: any) => ({
+                id: m.id,
+                role: m.role as "user" | "assistant",
+                content: m.content,
+                ollamaUsed: m.ollamaUsed,
+                proposals: m.proposals as Proposal[] | undefined,
+                createdAt: m.createdAt,
+                status: m.status as "PENDING" | "COMPLETED" | "FAILED" | undefined,
+                savedRequestIds: Array.isArray(m.savedRequestIds) ? m.savedRequestIds : [],
+              }));
+              setMessages(updated);
+            }
+          } catch (e) {
+            console.error("Polling failed:", e);
+          }
+        })();
+
+        return prev;
+      });
+    }, 2000);
+
+    return () => clearInterval(interval);
+  }, [activeChatId]);
 
   const isEmpty = messages.length === 0;
 
@@ -505,10 +645,10 @@ export default function AssistantPage() {
             )}
 
             {messages.map((msg, i) => (
-              <div key={i}>
+              <div key={msg.id || i}>
                 {msg.role === "user"
                   ? <UserBubble text={msg.content} />
-                  : <AssistantBubble msg={msg} />
+                  : <AssistantBubble msg={msg} onRetry={msg.id ? retryMessage : undefined} />
                 }
               </div>
             ))}
