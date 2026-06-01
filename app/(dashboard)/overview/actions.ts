@@ -41,6 +41,15 @@ export async function getOverviewData() {
       }),
     ]);
 
+    // AI request stats (today)
+    const todayStart = new Date(); todayStart.setHours(0,0,0,0);
+    const [aiPending, aiApprovedToday, aiRejectedToday, aiExecutedToday] = await Promise.all([
+      prisma.aIActionRequest.count({ where: { status: "PENDING" } }),
+      prisma.aIActionRequest.count({ where: { status: "APPROVED", approvedAt: { gte: todayStart } } }),
+      prisma.aIActionRequest.count({ where: { status: "REJECTED", approvedAt: { gte: todayStart } } }),
+      prisma.aIActionRequest.count({ where: { status: "EXECUTED", approvedAt: { gte: todayStart } } }),
+    ]);
+
     const openOrdersCount = allOrders.length;
     const inProductionCount = allOrders.filter((o) => o.status === "IN_PRODUCTION").length;
     const delayedCount = allOrders.filter((o) => o.status === "DELAYED").length;
@@ -104,6 +113,7 @@ export async function getOverviewData() {
         unit: m.unit,
       })),
       systemAlerts,
+      aiRequests: { pending: aiPending, approvedToday: aiApprovedToday, rejectedToday: aiRejectedToday, executedToday: aiExecutedToday },
     };
   } catch (error) {
     console.error("Failed to fetch overview data:", error);
@@ -118,6 +128,7 @@ export async function getOverviewData() {
       recentOrders: [],
       lowStockAlerts: [],
       systemAlerts: [],
+      aiRequests: { pending: 0, approvedToday: 0, rejectedToday: 0, executedToday: 0 },
     };
   }
 }

@@ -11,6 +11,9 @@ export const dictionaries: Record<Language, Record<string, string>> = {
     "nav.reports": "Reports",
     "nav.settings": "Settings",
     "nav.assistant": "Assistant",
+    "nav.ai_requests": "AI Requests",
+    "nav.ai_history": "AI History",
+    "nav.ai_group": "AI Copilot",
 
     // Page titles
     "page.overview": "Overview",
@@ -22,6 +25,8 @@ export const dictionaries: Record<Language, Record<string, string>> = {
     "page.settings": "Settings",
     "page.profile": "Profile",
     "page.assistant": "Assistant",
+    "page.ai_requests": "AI Requests",
+    "page.ai_history": "AI History",
 
     // Page subtitles
     "subtitle.overview": "Factory operations at a glance",
@@ -32,7 +37,9 @@ export const dictionaries: Record<Language, Record<string, string>> = {
     "subtitle.reports": "Analytics, exports, and operational reports",
     "subtitle.settings": "Configure your dashboard and manage users",
     "subtitle.profile": "Manage your account and security settings",
-    "subtitle.assistant": "Ask questions about your factory data",
+    "subtitle.assistant": "Factory Operations Copilot — powered by local AI",
+    "subtitle.ai_requests": "AI-proposed actions awaiting review and approval",
+    "subtitle.ai_history": "Complete log of all AI interactions",
 
     // KPI Cards
     "kpi.total_materials": "Total Materials",
@@ -104,6 +111,9 @@ export const dictionaries: Record<Language, Record<string, string>> = {
     "nav.reports": "Berichte",
     "nav.settings": "Einstellungen",
     "nav.assistant": "Assistent",
+    "nav.ai_requests": "KI-Anfragen",
+    "nav.ai_history": "KI-Verlauf",
+    "nav.ai_group": "KI-Copilot",
 
     // Page titles
     "page.overview": "Übersicht",
@@ -115,6 +125,8 @@ export const dictionaries: Record<Language, Record<string, string>> = {
     "page.settings": "Einstellungen",
     "page.profile": "Profil",
     "page.assistant": "Assistent",
+    "page.ai_requests": "KI-Anfragen",
+    "page.ai_history": "KI-Verlauf",
 
     // Page subtitles
     "subtitle.overview": "Fabrikbetrieb auf einen Blick",
@@ -125,7 +137,9 @@ export const dictionaries: Record<Language, Record<string, string>> = {
     "subtitle.reports": "Analysen, Exporte und Betriebsberichte",
     "subtitle.settings": "Konfigurieren Sie Ihr Dashboard und verwalten Sie Benutzer",
     "subtitle.profile": "Verwalten Sie Ihr Konto und Ihre Sicherheitseinstellungen",
-    "subtitle.assistant": "Stellen Sie Fragen zu Ihren Fabrikdaten",
+    "subtitle.assistant": "Fabrik-Copilot — lokale KI für Betriebsanalysen",
+    "subtitle.ai_requests": "KI-Vorschläge zur Überprüfung und Genehmigung",
+    "subtitle.ai_history": "Vollständiges Protokoll aller KI-Interaktionen",
 
     // KPI Cards
     "kpi.total_materials": "Gesamtmaterialien",

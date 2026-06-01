@@ -108,6 +108,34 @@ export default async function OverviewPage() {
         </div>
       )}
 
+      {/* AI Requests summary card — always shown (server renders for all roles, but only meaningful for admins) */}
+      {(data.aiRequests.pending > 0 || data.aiRequests.approvedToday > 0 || data.aiRequests.executedToday > 0) && (
+        <a href="/ai-requests" className="block">
+          <section className="bg-zinc-900 rounded-xl border border-zinc-800 hover:border-zinc-700 transition-colors">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-zinc-800">
+              <div className="flex items-center gap-3">
+                <div className="w-6 h-6 rounded-md bg-purple-900 flex items-center justify-center text-xs text-purple-300 font-bold shrink-0">✦</div>
+                <h2 className="text-sm font-semibold text-zinc-100">AI Action Requests</h2>
+              </div>
+              <span className="text-xs text-zinc-500">View all →</span>
+            </div>
+            <div className="grid grid-cols-4 divide-x divide-zinc-800">
+              {[
+                { label: "Pending Approval", value: data.aiRequests.pending, accent: data.aiRequests.pending > 0 ? "text-amber-400" : "text-zinc-500" },
+                { label: "Approved Today",   value: data.aiRequests.approvedToday,  accent: "text-blue-400" },
+                { label: "Rejected Today",   value: data.aiRequests.rejectedToday,  accent: "text-zinc-500" },
+                { label: "Executed Today",   value: data.aiRequests.executedToday,  accent: "text-emerald-400" },
+              ].map((s) => (
+                <div key={s.label} className="px-6 py-4">
+                  <p className="text-xs text-zinc-500 mb-1">{s.label}</p>
+                  <p className={`text-2xl font-bold ${s.accent}`}>{s.value}</p>
+                </div>
+              ))}
+            </div>
+          </section>
+        </a>
+      )}
+
       {/* System Insights - Always show if there are alerts */}
       {data.systemAlerts.length > 0 && (
         <section className="bg-zinc-900 rounded-xl border border-zinc-800">

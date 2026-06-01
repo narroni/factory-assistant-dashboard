@@ -71,7 +71,11 @@ model User {
   lastLoginAt         DateTime?
   forcePasswordChange Boolean    @default(false)
 
-  auditLogs AuditLog[]
+  auditLogs           AuditLog[]
+  aiActionRequests    AIActionRequest[]  @relation("AIActionCreator")
+  aiActionApprovals   AIActionRequest[]  @relation("AIActionApprover")
+  aiInteractionLogs   AIInteractionLog[]
+  assistantChats      AssistantChat[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -242,6 +246,89 @@ model DatabaseBackup {
 
   @@index([createdAt])
   @@map("database_backups")
+}
+
+// ── Assistant Chat ────────────────────────────────────────────────────────────
+
+model AssistantChat {
+  id        String   @id @default(cuid())
+  userId    String
+  title     String   @default("New Chat")
+
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  messages  AssistantMessage[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+  @@index([updatedAt])
+  @@map("assistant_chats")
+}
+
+model AssistantMessage {
+  id         String @id @default(cuid())
+  chatId     String
+  role       String  // "user" | "assistant"
+  content    String
+  ollamaUsed Boolean @default(false)
+  proposals  Json?
+
+  chat       AssistantChat @relation(fields: [chatId], references: [id], onDelete: Cascade)
+
+  createdAt  DateTime @default(now())
+
+  @@index([chatId])
+  @@map("assistant_messages")
+}
+
+// ── AI Action Request ─────────────────────────────────────────────────────────
+
+enum AIActionStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  EXECUTED
+}
+
+model AIActionRequest {
+  id              String         @id @default(cuid())
+  createdByUserId String
+  actionType      String
+  payload         Json
+  reasoning       String
+  status          AIActionStatus @default(PENDING)
+  approvedBy      String?
+  approvedAt      DateTime?
+
+  createdByUser User  @relation("AIActionCreator",  fields: [createdByUserId], references: [id])
+  approver      User? @relation("AIActionApprover", fields: [approvedBy],      references: [id])
+
+  createdAt DateTime @default(now())
+
+  @@index([status])
+  @@index([createdByUserId])
+  @@map("ai_action_requests")
+}
+
+// ── AI Interaction Log ────────────────────────────────────────────────────────
+
+model AIInteractionLog {
+  id              String   @id @default(cuid())
+  userId          String
+  prompt          String
+  intent          String?
+  response        String
+  ollamaUsed      Boolean  @default(false)
+  actionsProposed Json?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([createdAt])
+  @@map("ai_interaction_logs")
 }
 
 // ── AuditLog ──────────────────────────────────────────────────────────────────

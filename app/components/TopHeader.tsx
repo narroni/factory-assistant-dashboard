@@ -14,7 +14,9 @@ const pageKeys: Record<string, string> = {
   "/reports":    "reports",
   "/settings":   "settings",
   "/profile":    "profile",
-  "/assistant":  "assistant",
+  "/assistant":   "assistant",
+  "/ai-requests": "ai_requests",
+  "/ai-history":  "ai_history",
 };
 
 type Alert = { type: "warning" | "info"; title: string; description: string };
