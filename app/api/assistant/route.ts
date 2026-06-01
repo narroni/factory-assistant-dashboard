@@ -145,8 +145,38 @@ export async function POST(req: NextRequest) {
     `${ctx.orders.pending + ctx.orders.inProduction} open orders. ` +
     `${ctx.suppliers.active} active suppliers.`;
 
+  // ── Load AI Config and Knowledge ────────────────────────────────────────────
+  let config;
+  let knowledgeText = "";
+  try {
+    config = await prisma.aIConfig.findUnique({ where: { id: "singleton" } });
+    const knowledge = await prisma.factoryKnowledge.findMany({
+      where: { enabled: true },
+      orderBy: { createdAt: "asc" },
+      take: 5, // Limit to 5 files to avoid token explosion
+    });
+    knowledgeText = knowledge.map((k) => `[${k.filename}]\n${k.content}`).join("\n\n");
+  } catch (err) {
+    // Silently fail; config is optional
+  }
+
   // ── Call Ollama ────────────────────────────────────────────────────────────
-  const result = await runCopilot({ question, history, ctx, fallback, language });
+  const result = await runCopilot({
+    question,
+    history,
+    ctx,
+    fallback,
+    language,
+    config: config
+      ? {
+          assistantName: config.assistantName,
+          systemPrompt: config.systemPrompt,
+          responseStyle: config.responseStyle,
+          allowedActions: (config.allowedActions as string[]) ?? [],
+        }
+      : undefined,
+    knowledge: knowledgeText || undefined,
+  });
 
   const answer = result.ok ? result.answer : result.fallback;
   const proposals: ActionProposal[] = result.ok ? result.proposals : [];

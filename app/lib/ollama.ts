@@ -57,8 +57,42 @@ export type OllamaHealthInfo = {
 
 // ── System prompt ─────────────────────────────────────────────────────────────
 
-function buildSystemPrompt(ctx: FactoryContext): string {
-  return `You are a Factory Operations Copilot — a local, private AI assistant for industrial manufacturing management.
+function buildSystemPrompt(
+  ctx: FactoryContext,
+  config?: { assistantName?: string; systemPrompt?: string; responseStyle?: string; allowedActions?: string[] },
+  knowledge?: string,
+): string {
+  const name = config?.assistantName ?? "Factory Operations Copilot";
+  const styleGuide =
+    config?.responseStyle === "detailed"
+      ? "Provide comprehensive, detailed responses with explanations."
+      : "Be concise and direct. Avoid unnecessary details.";
+
+  const customPrompt = config?.systemPrompt ? `\n\nCUSTOM INSTRUCTIONS:\n${config.systemPrompt}` : "";
+  const knowledgeSection = knowledge ? `\n\nFACTORY KNOWLEDGE:\n${knowledge}` : "";
+
+  const allowedActionTypes = config?.allowedActions ?? [
+    "create_order",
+    "create_purchase_request",
+    "update_stock",
+    "assign_supplier",
+    "generate_report",
+    "export_data",
+  ];
+
+  const actionTypesText = allowedActionTypes.map((t) => {
+    const descriptions: Record<string, string> = {
+      create_order: '- create_order: {"customer":"...","productCode":"...","qty":0,"dueDate":"YYYY-MM-DD","valueEur":0}',
+      create_purchase_request: '- create_purchase_request: {"materialCode":"...","quantity":0,"unit":"...","supplierName":"..."}',
+      update_stock: '- update_stock: {"materialCode":"...","newQuantity":0,"reason":"..."}',
+      assign_supplier: '- assign_supplier: {"materialCode":"...","supplierCode":"..."}',
+      generate_report: '- generate_report: {"reportType":"inventory|orders|suppliers|production","format":"csv|pdf"}',
+      export_data: '- export_data: {"entity":"materials|orders|suppliers|products","filters":{}}',
+    };
+    return descriptions[t] ?? "";
+  }).filter(Boolean);
+
+  return `You are ${name} — a local, private AI assistant for industrial manufacturing management.
 
 You have access to real-time factory database data, updated as of ${ctx.asOf}.
 
@@ -70,8 +104,10 @@ YOUR CAPABILITIES:
 - Generate operational reports, emails, and summaries
 - Explain trends and flag risks
 
+${styleGuide}${customPrompt}
+
 CURRENT FACTORY DATA:
-${JSON.stringify(ctx, null, 2)}
+${JSON.stringify(ctx, null, 2)}${knowledgeSection}
 
 SAFETY RULES (never violate):
 1. Never fabricate inventory quantities, order values, or performance metrics
@@ -86,14 +122,9 @@ When proposing a specific action, append it to the END of your answer using exac
 ---END---
 
 Supported action types and payload shapes:
-- create_order: {"customer":"...","productCode":"...","qty":0,"dueDate":"YYYY-MM-DD","valueEur":0}
-- create_purchase_request: {"materialCode":"...","quantity":0,"unit":"...","supplierName":"..."}
-- update_stock: {"materialCode":"...","newQuantity":0,"reason":"..."}
-- assign_supplier: {"materialCode":"...","supplierCode":"..."}
-- generate_report: {"reportType":"inventory|orders|suppliers|production","format":"csv|pdf"}
-- export_data: {"entity":"materials|orders|suppliers|products","filters":{}}
+${actionTypesText.join("\n")}
 
-Only propose actions when the user explicitly asks or when it is clearly necessary.
+Only propose ${allowedActionTypes.length > 0 ? "allowed" : ""} actions when the user explicitly asks or when it is clearly necessary.
 Propose at most 3 actions per response.
 
 TONE: Professional, concise, and helpful. Plain text — no markdown symbols or bullet points.`;
@@ -158,19 +189,23 @@ export async function runCopilot({
   ctx,
   fallback,
   language = "en",
+  config,
+  knowledge,
 }: {
   question: string;
   history: ConversationMessage[];
   ctx: FactoryContext;
   fallback: string;
   language?: string;
+  config?: { assistantName?: string; systemPrompt?: string; responseStyle?: string; allowedActions?: string[] };
+  knowledge?: string;
 }): Promise<CopilotResult> {
   const langInstruction = language === "de"
     ? "Answer in German (Deutsch). The user is writing in German."
     : "Answer in English.";
 
   const messages = [
-    { role: "system"    as const, content: buildSystemPrompt(ctx) },
+    { role: "system"    as const, content: buildSystemPrompt(ctx, config, knowledge) },
     ...history.slice(-10),
     { role: "user"      as const, content: `${question}\n\n[Language instruction: ${langInstruction}]` },
   ];

@@ -14,6 +14,8 @@ export const dictionaries: Record<Language, Record<string, string>> = {
     "nav.ai_requests": "AI Requests",
     "nav.ai_history": "AI History",
     "nav.ai_group": "AI Copilot",
+    "nav.ai_config": "AI Configuration",
+    "nav.ai_knowledge": "Knowledge Base",
 
     // Page titles
     "page.overview": "Overview",
@@ -114,6 +116,8 @@ export const dictionaries: Record<Language, Record<string, string>> = {
     "nav.ai_requests": "KI-Anfragen",
     "nav.ai_history": "KI-Verlauf",
     "nav.ai_group": "KI-Copilot",
+    "nav.ai_config": "KI-Konfiguration",
+    "nav.ai_knowledge": "Wissensdatenbank",
 
     // Page titles
     "page.overview": "Übersicht",

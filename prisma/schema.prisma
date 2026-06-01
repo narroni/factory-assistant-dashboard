@@ -76,6 +76,7 @@ model User {
   aiActionApprovals   AIActionRequest[]  @relation("AIActionApprover")
   aiInteractionLogs   AIInteractionLog[]
   assistantChats      AssistantChat[]
+  factoryKnowledge    FactoryKnowledge[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -329,6 +330,43 @@ model AIInteractionLog {
   @@index([userId])
   @@index([createdAt])
   @@map("ai_interaction_logs")
+}
+
+// ── AI Configuration ──────────────────────────────────────────────────────────
+
+model AIConfig {
+  id                String  @id @default("singleton")
+  assistantName     String  @default("Factory Copilot")
+  systemPrompt      String  @default("")
+  responseStyle     String  @default("concise") // "concise" | "detailed"
+  defaultLanguage   String  @default("en")
+  allowedActions    Json    @default("[]") // array of action types
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("ai_config")
+}
+
+model FactoryKnowledge {
+  id          String   @id @default(cuid())
+  filename    String
+  fileType    String   // "txt" | "csv" | "xlsx" | "pdf"
+  fileSize    Int
+  content     String   @db.Text // extracted text or summary
+  metadata    Json?    // file-specific metadata
+  enabled     Boolean  @default(true)
+  uploadedBy  String
+
+  user        User     @relation(fields: [uploadedBy], references: [id], onDelete: Cascade)
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([enabled])
+  @@index([uploadedBy])
+  @@index([createdAt])
+  @@map("factory_knowledge")
 }
 
 // ── AuditLog ──────────────────────────────────────────────────────────────────
