@@ -1,6 +1,9 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useLanguage } from "../../contexts/LanguageContext";
+import { t } from "../../lib/i18n";
+import { generateCSV, generateXLSX, generatePDF } from "../../lib/export";
 import { ModalShell } from "../../components/ModalShell";
 import { DeleteConfirm } from "../../components/DeleteConfirm";
 import { useToast, ToastList } from "../../components/Toast";
@@ -41,25 +44,26 @@ const EMPTY_FORM: FormState = {
 // ── Material Form Modal ───────────────────────────────────────────────────────
 
 function MaterialModal({
-  mode, form, onChange, onSave, onClose,
+  mode, form, onChange, onSave, onClose, language,
 }: {
   mode: "add" | "edit";
   form: FormState;
   onChange: <K extends keyof FormState>(k: K, v: FormState[K]) => void;
   onSave: () => void;
   onClose: () => void;
+  language: "en" | "de";
 }) {
   const isValid = form.name.trim() && form.code.trim() && form.supplier.trim();
   return (
     <ModalShell
-      title={mode === "add" ? "Add Material" : "Edit Material"}
+      title={mode === "add" ? t("btn.add", language) + " Material" : t("btn.edit", language) + " Material"}
       subtitle={mode === "add" ? "Add a new raw material to inventory." : "Update material information."}
       onClose={onClose}
       footer={
         <>
-          <button onClick={onClose} className="px-4 py-2 text-sm text-zinc-400 hover:text-zinc-200 transition-colors">Cancel</button>
+          <button onClick={onClose} className="px-4 py-2 text-sm text-zinc-400 hover:text-zinc-200 transition-colors">{t("btn.cancel", language)}</button>
           <button onClick={onSave} disabled={!isValid} className="px-5 py-2 bg-blue-600 hover:bg-blue-500 disabled:opacity-40 disabled:cursor-not-allowed text-white text-sm font-medium rounded-lg transition-colors">
-            {mode === "add" ? "Add Material" : "Save Changes"}
+            {mode === "add" ? t("btn.add", language) : t("btn.save", language)}
           </button>
         </>
       }
@@ -86,6 +90,7 @@ function MaterialModal({
 // ── Page ──────────────────────────────────────────────────────────────────────
 
 export default function MaterialsPage() {
+  const { language } = useLanguage();
   const [items, setItems]         = useState<Material[]>([]);
   const [search, setSearch]       = useState("");
   const [categoryFilter, setCat]  = useState("All");
@@ -216,10 +221,10 @@ export default function MaterialsPage() {
       {/* KPI strip */}
       <div className="grid grid-cols-4 gap-4">
         {[
-          { label: "Total Materials", value: counts.total,      accent: "text-zinc-100",    sf: "All"          },
-          { label: "In Stock",        value: counts.inStock,    accent: "text-emerald-400", sf: "In Stock"     },
-          { label: "Low Stock",       value: counts.lowStock,   accent: "text-amber-400",   sf: "Low Stock"    },
-          { label: "Out of Stock",    value: counts.outOfStock, accent: "text-red-400",     sf: "Out of Stock" },
+          { label: t("kpi.total_materials", language), value: counts.total,      accent: "text-zinc-100",    sf: "All"          },
+          { label: t("kpi.in_stock", language),        value: counts.inStock,    accent: "text-emerald-400", sf: "In Stock"     },
+          { label: t("kpi.low_stock", language),       value: counts.lowStock,   accent: "text-amber-400",   sf: "Low Stock"    },
+          { label: t("kpi.out_of_stock", language),    value: counts.outOfStock, accent: "text-red-400",     sf: "Out of Stock" },
         ].map((s) => (
           <button
             key={s.label}
@@ -244,9 +249,45 @@ export default function MaterialsPage() {
           <select value={statusFilter} onChange={(e) => setStatus(e.target.value)} className="bg-zinc-800 border border-zinc-700 text-zinc-300 text-xs px-3 py-2 rounded-lg focus:outline-none focus:border-blue-500 transition-colors">
             {["All", ...STATUSES].map((s) => <option key={s}>{s}</option>)}
           </select>
-          <div className="ml-auto flex items-center gap-3">
+          <div className="ml-auto flex items-center gap-2">
             <span className="text-xs text-zinc-600">{filtered.length} of {items.length}</span>
-            <AddButton onClick={openAdd} label="Add Material" />
+            <button
+              onClick={() => generateCSV(
+                filtered.map(m => ({
+                  "Material Name": m.name,
+                  Code: m.code,
+                  Category: m.category,
+                  Quantity: m.quantity,
+                  Unit: m.unit,
+                  Supplier: m.supplier,
+                  Status: m.status,
+                })),
+                ["Material Name", "Code", "Category", "Quantity", "Unit", "Supplier", "Status"],
+                "materials"
+              )}
+              className="px-3 py-2 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 hover:text-zinc-100 text-xs font-medium rounded-lg transition-colors"
+            >
+              {t("btn.csv", language)}
+            </button>
+            <button
+              onClick={() => generateXLSX(
+                filtered.map(m => ({
+                  "Material Name": m.name,
+                  Code: m.code,
+                  Category: m.category,
+                  Quantity: m.quantity,
+                  Unit: m.unit,
+                  Supplier: m.supplier,
+                  Status: m.status,
+                })),
+                ["Material Name", "Code", "Category", "Quantity", "Unit", "Supplier", "Status"],
+                "materials"
+              )}
+              className="px-3 py-2 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 hover:text-zinc-100 text-xs font-medium rounded-lg transition-colors"
+            >
+              {t("btn.pdf", language)}
+            </button>
+            <AddButton onClick={openAdd} label={t("btn.add", language)} />
           </div>
         </div>
 
@@ -260,7 +301,7 @@ export default function MaterialsPage() {
                 <th className="px-6 py-3 font-medium text-right">Quantity</th>
                 <th className="px-6 py-3 font-medium">Unit</th>
                 <th className="px-6 py-3 font-medium">Supplier</th>
-                <th className="px-6 py-3 font-medium">Status</th>
+                <th className="px-6 py-3 font-medium">{t("status.in_stock", language).split(" ")[0]}</th>
                 <th className="px-6 py-3 font-medium"></th>
               </tr>
             </thead>
@@ -268,7 +309,7 @@ export default function MaterialsPage() {
               {filtered.length === 0 ? (
                 <tr><td colSpan={8} className="px-6 py-16 text-center">
                   <p className="text-zinc-500 text-sm">No materials match your filters.</p>
-                  <button onClick={() => { setSearch(""); setCat("All"); setStatus("All"); }} className="text-xs text-blue-400 hover:text-blue-300 mt-2">Clear filters</button>
+                  <button onClick={() => { setSearch(""); setCat("All"); setStatus("All"); }} className="text-xs text-blue-400 hover:text-blue-300 mt-2">{t("btn.clear", language)}</button>
                 </td></tr>
               ) : paged.map((m, i) => (
                 <tr key={m.id} className={`hover:bg-zinc-800/40 transition-colors ${i < paged.length - 1 ? "border-b border-zinc-800" : ""}`}>
@@ -300,7 +341,7 @@ export default function MaterialsPage() {
 
         <div className="flex items-center justify-between px-6 py-3 border-t border-zinc-800">
           <div className="flex items-center gap-2">
-            <span className="text-xs text-zinc-500">Rows per page:</span>
+            <span className="text-xs text-zinc-500">Items per page:</span>
             <select
               value={pageSize}
               onChange={(e) => { setPageSize(Number(e.target.value)); setPage(1); }}
@@ -333,7 +374,7 @@ export default function MaterialsPage() {
       </section>
 
       {formMode && (
-        <MaterialModal mode={formMode} form={form} onChange={setField} onSave={saveItem} onClose={closeForm} />
+        <MaterialModal mode={formMode} form={form} onChange={setField} onSave={saveItem} onClose={closeForm} language={language} />
       )}
       {deleteId && deletingItem && (
         <DeleteConfirm title="Delete Material" itemName={deletingItem.name} onConfirm={confirmDelete} onClose={() => setDeleteId(null)} />

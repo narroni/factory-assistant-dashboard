@@ -11,6 +11,8 @@ export type UserInfo = {
   email: string;
   role: UserRole;
   status: UserStatus;
+  lastLoginAt: string | null;
+  forcePasswordChange: boolean;
   createdAt: string;
 };
 
@@ -25,6 +27,8 @@ export async function getUsers(): Promise<UserInfo[]> {
         email: true,
         role: true,
         status: true,
+        lastLoginAt: true,
+        forcePasswordChange: true,
         createdAt: true,
       },
       orderBy: { createdAt: "desc" },
@@ -32,6 +36,7 @@ export async function getUsers(): Promise<UserInfo[]> {
 
     return users.map((u) => ({
       ...u,
+      lastLoginAt: u.lastLoginAt ? u.lastLoginAt.toISOString().split("T")[0] : null,
       createdAt: u.createdAt.toISOString().split("T")[0],
     }));
   } catch (error) {
@@ -70,6 +75,7 @@ export async function createUser(data: {
         passwordHash,
         role: data.role,
         status: "ACTIVE",
+        forcePasswordChange: true,
       },
       select: {
         id: true,
@@ -77,12 +83,15 @@ export async function createUser(data: {
         email: true,
         role: true,
         status: true,
+        lastLoginAt: true,
+        forcePasswordChange: true,
         createdAt: true,
       },
     });
 
     return {
       ...newUser,
+      lastLoginAt: newUser.lastLoginAt ? newUser.lastLoginAt.toISOString().split("T")[0] : null,
       createdAt: newUser.createdAt.toISOString().split("T")[0],
     };
   } catch (error) {
@@ -128,12 +137,15 @@ export async function updateUser(
         email: true,
         role: true,
         status: true,
+        lastLoginAt: true,
+        forcePasswordChange: true,
         createdAt: true,
       },
     });
 
     return {
       ...updatedUser,
+      lastLoginAt: updatedUser.lastLoginAt ? updatedUser.lastLoginAt.toISOString().split("T")[0] : null,
       createdAt: updatedUser.createdAt.toISOString().split("T")[0],
     };
   } catch (error) {
@@ -160,12 +172,15 @@ export async function deactivateUser(id: string): Promise<UserInfo> {
         email: true,
         role: true,
         status: true,
+        lastLoginAt: true,
+        forcePasswordChange: true,
         createdAt: true,
       },
     });
 
     return {
       ...updatedUser,
+      lastLoginAt: updatedUser.lastLoginAt ? updatedUser.lastLoginAt.toISOString().split("T")[0] : null,
       createdAt: updatedUser.createdAt.toISOString().split("T")[0],
     };
   } catch (error) {
@@ -192,12 +207,15 @@ export async function activateUser(id: string): Promise<UserInfo> {
         email: true,
         role: true,
         status: true,
+        lastLoginAt: true,
+        forcePasswordChange: true,
         createdAt: true,
       },
     });
 
     return {
       ...updatedUser,
+      lastLoginAt: updatedUser.lastLoginAt ? updatedUser.lastLoginAt.toISOString().split("T")[0] : null,
       createdAt: updatedUser.createdAt.toISOString().split("T")[0],
     };
   } catch (error) {
@@ -221,10 +239,43 @@ export async function resetUserPassword(
 
     await prisma.user.update({
       where: { id },
-      data: { passwordHash },
+      data: { passwordHash, forcePasswordChange: true },
     });
   } catch (error) {
     console.error("Failed to reset password:", error);
     throw new Error(error instanceof Error ? error.message : "Failed to reset password");
+  }
+}
+
+export async function setForcePasswordChange(
+  id: string,
+  forceChange: boolean
+): Promise<UserInfo> {
+  try {
+    await requireAdmin();
+
+    const updatedUser = await prisma.user.update({
+      where: { id },
+      data: { forcePasswordChange: forceChange },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        role: true,
+        status: true,
+        lastLoginAt: true,
+        forcePasswordChange: true,
+        createdAt: true,
+      },
+    });
+
+    return {
+      ...updatedUser,
+      lastLoginAt: updatedUser.lastLoginAt ? updatedUser.lastLoginAt.toISOString().split("T")[0] : null,
+      createdAt: updatedUser.createdAt.toISOString().split("T")[0],
+    };
+  } catch (error) {
+    console.error("Failed to set force password change:", error);
+    throw new Error(error instanceof Error ? error.message : "Failed to update user");
   }
 }

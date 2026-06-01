@@ -1,6 +1,9 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useLanguage } from "../../contexts/LanguageContext";
+import { t } from "../../lib/i18n";
+import { generateCSV, generateXLSX, generatePDF } from "../../lib/export";
 import { ModalShell } from "../../components/ModalShell";
 import { DeleteConfirm } from "../../components/DeleteConfirm";
 import { useToast, ToastList } from "../../components/Toast";
@@ -107,6 +110,7 @@ export default function OrdersPage() {
   const [deleteId, setDeleteId]   = useState<string | null>(null);
   const [loading, setLoading]     = useState(true);
   const [error, setError]         = useState<string | null>(null);
+  const { language } = useLanguage();
   const { toasts, showToast }     = useToast();
 
   // Load orders from database on mount
@@ -235,8 +239,46 @@ export default function OrdersPage() {
           <select value={statusFilter} onChange={(e) => setStatus(e.target.value as OrderStatus | "All")} className="bg-zinc-800 border border-zinc-700 text-zinc-300 text-xs px-3 py-2 rounded-lg focus:outline-none focus:border-blue-500 transition-colors">
             {["All", ...STATUSES].map((s) => <option key={s}>{s}</option>)}
           </select>
-          <div className="ml-auto flex items-center gap-3">
+          <div className="ml-auto flex items-center gap-2">
             <span className="text-xs text-zinc-600">{filtered.length} of {items.length}</span>
+            <button
+              onClick={() => generateCSV(
+                filtered.map(o => ({
+                  "Order ID": o.id,
+                  Customer: o.customer,
+                  Product: o.product,
+                  Code: o.productCode,
+                  Qty: o.qty,
+                  Value: `€${o.value.toFixed(2)}`,
+                  Status: o.status,
+                  "Due Date": o.dueDate,
+                })),
+                ["Order ID", "Customer", "Product", "Code", "Qty", "Value", "Status", "Due Date"],
+                "orders"
+              )}
+              className="px-3 py-2 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 hover:text-zinc-100 text-xs font-medium rounded-lg transition-colors"
+            >
+              {t("btn.csv", language)}
+            </button>
+            <button
+              onClick={() => generateXLSX(
+                filtered.map(o => ({
+                  "Order ID": o.id,
+                  Customer: o.customer,
+                  Product: o.product,
+                  Code: o.productCode,
+                  Qty: o.qty,
+                  Value: `€${o.value.toFixed(2)}`,
+                  Status: o.status,
+                  "Due Date": o.dueDate,
+                })),
+                ["Order ID", "Customer", "Product", "Code", "Qty", "Value", "Status", "Due Date"],
+                "orders"
+              )}
+              className="px-3 py-2 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 hover:text-zinc-100 text-xs font-medium rounded-lg transition-colors"
+            >
+              {t("btn.pdf", language)}
+            </button>
             <AddButton onClick={openAdd} label="New Order" />
           </div>
         </div>

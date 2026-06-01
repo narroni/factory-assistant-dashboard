@@ -19,6 +19,7 @@ export const dictionaries: Record<Language, Record<string, string>> = {
     "page.suppliers": "Suppliers",
     "page.reports": "Reports",
     "page.settings": "Settings",
+    "page.profile": "Profile",
 
     // Page subtitles
     "subtitle.overview": "Factory operations at a glance",
@@ -27,13 +28,25 @@ export const dictionaries: Record<Language, Record<string, string>> = {
     "subtitle.orders": "Customer orders and production fulfillment",
     "subtitle.suppliers": "Supplier directory and performance tracking",
     "subtitle.reports": "Analytics, exports, and operational reports",
-    "subtitle.settings": "System configuration and preferences",
+    "subtitle.settings": "Configure your dashboard and manage users",
+    "subtitle.profile": "Manage your account and security settings",
 
     // KPI Cards
     "kpi.total_materials": "Total Materials",
-    "kpi.open_orders": "Open Orders",
-    "kpi.low_stock": "Low Stock Items",
-    "kpi.production_capacity": "Production Capacity",
+    "kpi.in_stock": "In Stock",
+    "kpi.low_stock": "Low Stock",
+    "kpi.out_of_stock": "Out of Stock",
+    "kpi.total_products": "Total Products",
+    "kpi.active": "Active",
+    "kpi.inactive": "Inactive",
+    "kpi.prototype": "Prototype",
+    "kpi.total_orders": "Total Orders",
+    "kpi.in_production": "In Production",
+    "kpi.pending": "Pending",
+    "kpi.total_value": "Total Order Value",
+    "kpi.total_suppliers": "Total Suppliers",
+    "kpi.warning": "Warning",
+    "kpi.avg_on_time": "Avg. On-Time Rate",
 
     // Common buttons & actions
     "btn.add": "Add",
@@ -42,21 +55,41 @@ export const dictionaries: Record<Language, Record<string, string>> = {
     "btn.save": "Save",
     "btn.cancel": "Cancel",
     "btn.preview": "Preview",
+    "btn.csv": "CSV",
+    "btn.pdf": "PDF",
     "btn.download": "Download",
     "btn.export": "Export",
     "btn.import": "Import",
     "btn.search": "Search",
+    "btn.clear": "Clear filters",
+    "btn.add_user": "Add User",
+    "btn.reset_pwd": "Reset Pwd",
+    "btn.deactivate": "Deactivate",
+    "btn.activate": "Activate",
 
     // Status values
+    "status.in_stock": "In Stock",
+    "status.low_stock": "Low Stock",
+    "status.out_of_stock": "Out of Stock",
     "status.pending": "Pending",
     "status.in_production": "In Production",
     "status.completed": "Completed",
     "status.delayed": "Delayed",
     "status.cancelled": "Cancelled",
+    "status.active": "Active",
+    "status.inactive": "Inactive",
+    "status.prototype": "Prototype",
+    "status.warning": "Warning",
+
+    // Login
+    "login.email": "Email",
+    "login.password": "Password",
+    "login.sign_in": "Sign In",
+    "login.title": "Factory Assistant Dashboard",
 
     // Language
     "lang.english": "English",
-    "lang.german": "German",
+    "lang.german": "Deutsch",
   },
   de: {
     // Navigation
@@ -76,6 +109,7 @@ export const dictionaries: Record<Language, Record<string, string>> = {
     "page.suppliers": "Lieferanten",
     "page.reports": "Berichte",
     "page.settings": "Einstellungen",
+    "page.profile": "Profil",
 
     // Page subtitles
     "subtitle.overview": "Fabrikbetrieb auf einen Blick",
@@ -84,13 +118,25 @@ export const dictionaries: Record<Language, Record<string, string>> = {
     "subtitle.orders": "Kundenbestellungen und Produktionserfüllung",
     "subtitle.suppliers": "Lieferantenverzeichnis und Leistungsverfolgung",
     "subtitle.reports": "Analysen, Exporte und Betriebsberichte",
-    "subtitle.settings": "Systemkonfiguration und Einstellungen",
+    "subtitle.settings": "Konfigurieren Sie Ihr Dashboard und verwalten Sie Benutzer",
+    "subtitle.profile": "Verwalten Sie Ihr Konto und Ihre Sicherheitseinstellungen",
 
     // KPI Cards
     "kpi.total_materials": "Gesamtmaterialien",
-    "kpi.open_orders": "Offene Bestellungen",
-    "kpi.low_stock": "Artikel mit niedrigem Bestand",
-    "kpi.production_capacity": "Produktionskapazität",
+    "kpi.in_stock": "Auf Lager",
+    "kpi.low_stock": "Niedriger Bestand",
+    "kpi.out_of_stock": "Nicht auf Lager",
+    "kpi.total_products": "Gesamtprodukte",
+    "kpi.active": "Aktiv",
+    "kpi.inactive": "Inaktiv",
+    "kpi.prototype": "Prototyp",
+    "kpi.total_orders": "Gesamtbestellungen",
+    "kpi.in_production": "In Produktion",
+    "kpi.pending": "Ausstehend",
+    "kpi.total_value": "Gesamtbestellwert",
+    "kpi.total_suppliers": "Gesamtlieferanten",
+    "kpi.warning": "Warnung",
+    "kpi.avg_on_time": "Durchschn. Pünktlichkeit",
 
     // Common buttons & actions
     "btn.add": "Hinzufügen",
@@ -99,17 +145,37 @@ export const dictionaries: Record<Language, Record<string, string>> = {
     "btn.save": "Speichern",
     "btn.cancel": "Abbrechen",
     "btn.preview": "Vorschau",
+    "btn.csv": "CSV",
+    "btn.pdf": "PDF",
     "btn.download": "Herunterladen",
     "btn.export": "Exportieren",
     "btn.import": "Importieren",
     "btn.search": "Suchen",
+    "btn.clear": "Filter löschen",
+    "btn.add_user": "Benutzer hinzufügen",
+    "btn.reset_pwd": "Passwort zurücksetzen",
+    "btn.deactivate": "Deaktivieren",
+    "btn.activate": "Aktivieren",
 
     // Status values
+    "status.in_stock": "Auf Lager",
+    "status.low_stock": "Niedriger Bestand",
+    "status.out_of_stock": "Nicht auf Lager",
     "status.pending": "Ausstehend",
     "status.in_production": "In Produktion",
     "status.completed": "Abgeschlossen",
     "status.delayed": "Verspätet",
     "status.cancelled": "Abgebrochen",
+    "status.active": "Aktiv",
+    "status.inactive": "Inaktiv",
+    "status.prototype": "Prototyp",
+    "status.warning": "Warnung",
+
+    // Login
+    "login.email": "E-Mail",
+    "login.password": "Passwort",
+    "login.sign_in": "Anmelden",
+    "login.title": "Factory Assistant Dashboard",
 
     // Language
     "lang.english": "English",

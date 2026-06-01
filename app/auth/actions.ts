@@ -32,6 +32,11 @@ export async function loginUser(email: string, password: string) {
       return { error: "User account is inactive" };
     }
 
+    await prisma.user.update({
+      where: { id: user.id },
+      data: { lastLoginAt: new Date() },
+    });
+
     await createSession(user.id);
     return { success: true };
   } catch (error) {

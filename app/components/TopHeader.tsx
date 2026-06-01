@@ -2,22 +2,28 @@
 
 import { usePathname } from "next/navigation";
 import { useState, useEffect, useRef } from "react";
+import { useLanguage } from "../contexts/LanguageContext";
+import { t } from "../lib/i18n";
 
-const pageMeta: Record<string, { title: string; subtitle: string }> = {
-  "/":           { title: "Overview",   subtitle: "Factory operations at a glance" },
-  "/materials":  { title: "Materials",  subtitle: "Raw material inventory and stock management" },
-  "/products":   { title: "Products",   subtitle: "Product catalog, dimensions, and specifications" },
-  "/orders":     { title: "Orders",     subtitle: "Customer orders and production fulfillment" },
-  "/suppliers":  { title: "Suppliers",  subtitle: "Supplier directory and performance tracking" },
-  "/reports":    { title: "Reports",    subtitle: "Analytics, exports, and operational reports" },
-  "/settings":   { title: "Settings",   subtitle: "System configuration and preferences" },
+const pageKeys: Record<string, string> = {
+  "/":           "overview",
+  "/materials":  "materials",
+  "/products":   "products",
+  "/orders":     "orders",
+  "/suppliers":  "suppliers",
+  "/reports":    "reports",
+  "/settings":   "settings",
+  "/profile":    "profile",
 };
 
 type Alert = { type: "warning" | "info"; title: string; description: string };
 
 export default function TopHeader() {
   const pathname = usePathname();
-  const meta = pageMeta[pathname] ?? { title: "Dashboard", subtitle: "" };
+  const { language } = useLanguage();
+  const pageKey = pageKeys[pathname];
+  const title = pageKey ? t(`page.${pageKey}`, language) : "Dashboard";
+  const subtitle = pageKey ? t(`subtitle.${pageKey}`, language) : "";
   const [alerts, setAlerts] = useState<Alert[]>([]);
   const [open, setOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -52,8 +58,8 @@ export default function TopHeader() {
   return (
     <header className="flex items-center justify-between px-8 py-4 border-b border-zinc-800 bg-zinc-950 shrink-0">
       <div>
-        <h1 className="text-lg font-semibold text-zinc-100">{meta.title}</h1>
-        <p className="text-xs text-zinc-500 mt-0.5">{meta.subtitle}</p>
+        <h1 className="text-lg font-semibold text-zinc-100">{title}</h1>
+        <p className="text-xs text-zinc-500 mt-0.5">{subtitle}</p>
       </div>
       <div className="flex items-center gap-3">
         <span className="inline-flex items-center gap-1.5 text-xs text-emerald-400 bg-emerald-950 border border-emerald-900 px-3 py-1.5 rounded-full font-medium">

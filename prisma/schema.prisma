@@ -62,12 +62,14 @@ enum AuditAction {
 // ── User ──────────────────────────────────────────────────────────────────────
 
 model User {
-  id           String     @id @default(cuid())
-  name         String
-  email        String     @unique
-  passwordHash String?
-  role         UserRole   @default(VIEWER)
-  status       UserStatus @default(ACTIVE)
+  id                  String     @id @default(cuid())
+  name                String
+  email               String     @unique
+  passwordHash        String?
+  role                UserRole   @default(VIEWER)
+  status              UserStatus @default(ACTIVE)
+  lastLoginAt         DateTime?
+  forcePasswordChange Boolean    @default(false)
 
   auditLogs AuditLog[]
 
@@ -225,6 +227,21 @@ model StockMovement {
   @@index([materialId])
   @@index([type])
   @@map("stock_movements")
+}
+
+// ── DatabaseBackup ────────────────────────────────────────────────────────────
+
+model DatabaseBackup {
+  id          String   @id @default(cuid())
+  filename    String
+  sizeBytes   Int
+  createdBy   String
+  note        String?
+
+  createdAt   DateTime @default(now())
+
+  @@index([createdAt])
+  @@map("database_backups")
 }
 
 // ── AuditLog ──────────────────────────────────────────────────────────────────

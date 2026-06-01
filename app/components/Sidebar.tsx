@@ -2,6 +2,8 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useLanguage } from "../contexts/LanguageContext";
+import { t } from "../lib/i18n";
 
 function GridIcon() {
   return (
@@ -61,23 +63,85 @@ function GearIcon() {
   );
 }
 
-const navItems = [
-  { label: "Overview",  href: "/",          Icon: GridIcon },
-  { label: "Materials", href: "/materials",  Icon: BoxIcon },
-  { label: "Products",  href: "/products",   Icon: LayersIcon },
-  { label: "Orders",    href: "/orders",     Icon: ClipboardIcon },
-  { label: "Suppliers", href: "/suppliers",  Icon: TruckIcon },
-  { label: "Reports",   href: "/reports",    Icon: BarChartIcon },
-  { label: "Settings",  href: "/settings",   Icon: GearIcon },
+const navItemsConfig = [
+  { key: "overview",  href: "/",          Icon: GridIcon },
+  { key: "materials", href: "/materials",  Icon: BoxIcon },
+  { key: "products",  href: "/products",   Icon: LayersIcon },
+  { key: "orders",    href: "/orders",     Icon: ClipboardIcon },
+  { key: "suppliers", href: "/suppliers",  Icon: TruckIcon },
+  { key: "reports",   href: "/reports",    Icon: BarChartIcon },
+  { key: "settings",  href: "/settings",   Icon: GearIcon },
 ];
 
-export default function Sidebar() {
+function SidebarNav({ language }: { language: "en" | "de" }) {
   const pathname = usePathname();
 
   function isActive(href: string) {
     if (href === "/") return pathname === "/";
     return pathname === href || pathname.startsWith(href + "/");
   }
+
+  return (
+    <nav className="flex flex-col gap-0.5 px-3 py-4 flex-1">
+      <p className="px-3 pb-2 text-xs font-medium text-zinc-600 uppercase tracking-wider">Main Menu</p>
+      {navItemsConfig.map(({ key, href, Icon }) => {
+        const active = isActive(href);
+        const label = t(`nav.${key}`, language);
+        return (
+          <Link
+            key={key}
+            href={href}
+            className={`flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors ${
+              active
+                ? "bg-blue-600 text-white font-medium shadow-sm"
+                : "text-zinc-400 hover:bg-zinc-800 hover:text-zinc-100"
+            }`}
+          >
+            <Icon />
+            {label}
+            {key === "products" && (
+              <span className={`ml-auto text-xs px-1.5 py-0.5 rounded font-medium ${active ? "bg-blue-500 text-blue-100" : "bg-zinc-800 text-zinc-500"}`}>
+                10
+              </span>
+            )}
+          </Link>
+        );
+      })}
+    </nav>
+  );
+}
+
+function LanguageSwitcher() {
+  const { language, setLanguage } = useLanguage();
+
+  return (
+    <div className="flex items-center gap-2 bg-zinc-800 rounded-lg p-1.5">
+      <button
+        onClick={() => setLanguage("en")}
+        className={`flex-1 px-2 py-1 text-xs font-medium rounded transition-colors ${
+          language === "en"
+            ? "bg-blue-600 text-white"
+            : "text-zinc-400 hover:text-zinc-200"
+        }`}
+      >
+        EN
+      </button>
+      <button
+        onClick={() => setLanguage("de")}
+        className={`flex-1 px-2 py-1 text-xs font-medium rounded transition-colors ${
+          language === "de"
+            ? "bg-blue-600 text-white"
+            : "text-zinc-400 hover:text-zinc-200"
+        }`}
+      >
+        DE
+      </button>
+    </div>
+  );
+}
+
+export default function Sidebar() {
+  const { language } = useLanguage();
 
   return (
     <aside className="flex flex-col w-60 shrink-0 bg-zinc-900 border-r border-zinc-800 h-full">
@@ -92,42 +156,23 @@ export default function Sidebar() {
         </div>
       </div>
 
-      {/* Nav */}
-      <nav className="flex flex-col gap-0.5 px-3 py-4 flex-1">
-        <p className="px-3 pb-2 text-xs font-medium text-zinc-600 uppercase tracking-wider">Main Menu</p>
-        {navItems.map(({ label, href, Icon }) => {
-          const active = isActive(href);
-          return (
-            <Link
-              key={label}
-              href={href}
-              className={`flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors ${
-                active
-                  ? "bg-blue-600 text-white font-medium shadow-sm"
-                  : "text-zinc-400 hover:bg-zinc-800 hover:text-zinc-100"
-              }`}
-            >
-              <Icon />
-              {label}
-              {label === "Products" && (
-                <span className={`ml-auto text-xs px-1.5 py-0.5 rounded font-medium ${active ? "bg-blue-500 text-blue-100" : "bg-zinc-800 text-zinc-500"}`}>
-                  10
-                </span>
-              )}
-            </Link>
-          );
-        })}
-      </nav>
+      <SidebarNav language={language} />
 
-      {/* User */}
-      <div className="px-4 py-4 border-t border-zinc-800 shrink-0 flex items-center gap-3">
-        <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-blue-700 flex items-center justify-center text-xs font-bold text-white shrink-0">
-          NP
-        </div>
-        <div className="flex flex-col min-w-0">
-          <span className="text-xs font-medium text-zinc-200 truncate">Narko P.</span>
-          <span className="text-xs text-zinc-500 truncate">Administrator</span>
-        </div>
+      {/* Language Switcher & User */}
+      <div className="px-4 py-4 border-t border-zinc-800 shrink-0 space-y-3">
+        <LanguageSwitcher />
+        <Link
+          href="/profile"
+          className="flex items-center gap-3 p-2 rounded-lg hover:bg-zinc-800 transition-colors group"
+        >
+          <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-blue-700 flex items-center justify-center text-xs font-bold text-white shrink-0">
+            NP
+          </div>
+          <div className="flex flex-col min-w-0">
+            <span className="text-xs font-medium text-zinc-200 truncate group-hover:text-blue-400 transition-colors">Narko P.</span>
+            <span className="text-xs text-zinc-500 truncate">Administrator</span>
+          </div>
+        </Link>
       </div>
     </aside>
   );

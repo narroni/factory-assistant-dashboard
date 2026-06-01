@@ -1,6 +1,9 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useLanguage } from "../../contexts/LanguageContext";
+import { t } from "../../lib/i18n";
+import { generateCSV, generateXLSX, generatePDF } from "../../lib/export";
 import { ModalShell } from "../../components/ModalShell";
 import { DeleteConfirm } from "../../components/DeleteConfirm";
 import { useToast, ToastList } from "../../components/Toast";
@@ -247,6 +250,7 @@ export default function ProductsPage() {
   const [deleteId, setDeleteId]     = useState<string | null>(null);
   const [loading, setLoading]       = useState(true);
   const [error, setError]           = useState<string | null>(null);
+  const { language } = useLanguage();
   const { toasts, showToast }       = useToast();
 
   // Load products from database on mount
@@ -382,8 +386,48 @@ export default function ProductsPage() {
             <select value={statusFilter} onChange={(e) => setStatus(e.target.value as ProductStatus | "All")} className="bg-zinc-800 border border-zinc-700 text-zinc-300 text-xs px-3 py-2 rounded-lg focus:outline-none focus:border-blue-500 transition-colors">
               {["All", ...STATUSES].map((s) => <option key={s}>{s}</option>)}
             </select>
-            <div className="ml-auto flex items-center gap-3">
+            <div className="ml-auto flex items-center gap-2">
               <span className="text-xs text-zinc-600">{filtered.length} of {items.length}</span>
+              <button
+                onClick={() => generateCSV(
+                  filtered.map(p => ({
+                    "Product Name": p.name,
+                    Code: p.code,
+                    "Length (mm)": p.length,
+                    "Width (mm)": p.width,
+                    "Thickness (mm)": p.thickness,
+                    "Weight (kg)": p.weight,
+                    "Volume (m³)": p.volume.toFixed(3),
+                    Material: p.material,
+                    Status: p.status,
+                  })),
+                  ["Product Name", "Code", "Length (mm)", "Width (mm)", "Thickness (mm)", "Weight (kg)", "Volume (m³)", "Material", "Status"],
+                  "products"
+                )}
+                className="px-3 py-2 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 hover:text-zinc-100 text-xs font-medium rounded-lg transition-colors"
+              >
+                {t("btn.csv", language)}
+              </button>
+              <button
+                onClick={() => generateXLSX(
+                  filtered.map(p => ({
+                    "Product Name": p.name,
+                    Code: p.code,
+                    "Length (mm)": p.length,
+                    "Width (mm)": p.width,
+                    "Thickness (mm)": p.thickness,
+                    "Weight (kg)": p.weight,
+                    "Volume (m³)": p.volume.toFixed(3),
+                    Material: p.material,
+                    Status: p.status,
+                  })),
+                  ["Product Name", "Code", "Length (mm)", "Width (mm)", "Thickness (mm)", "Weight (kg)", "Volume (m³)", "Material", "Status"],
+                  "products"
+                )}
+                className="px-3 py-2 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 hover:text-zinc-100 text-xs font-medium rounded-lg transition-colors"
+              >
+                {t("btn.pdf", language)}
+              </button>
               <button onClick={openAdd} className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white text-xs font-medium rounded-lg transition-colors">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" /></svg>
                 Add Product

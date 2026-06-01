@@ -4,62 +4,120 @@ import { prisma } from "../../lib/prisma";
 
 export async function getOverviewData() {
   try {
-    const [materialCount, lowStockCount, orders, lowStockMaterials] = await Promise.all([
+    const [
+      materialCount,
+      inStockCount,
+      lowStockCount,
+      outOfStockCount,
+      allOrders,
+      recentOrders,
+      lowStockMaterials,
+      outOfStockMaterials,
+      totalOrderValue,
+    ] = await Promise.all([
       prisma.material.count(),
-      prisma.material.count({
-        where: { status: "LOW_STOCK" },
+      prisma.material.count({ where: { status: "IN_STOCK" } }),
+      prisma.material.count({ where: { status: "LOW_STOCK" } }),
+      prisma.material.count({ where: { status: "OUT_OF_STOCK" } }),
+      prisma.order.findMany({
+        where: { status: { not: "COMPLETED" } },
       }),
       prisma.order.findMany({
-        where: { status: "PENDING" },
+        orderBy: { createdAt: "desc" },
         take: 10,
-        orderBy: { dueDate: "asc" },
       }),
       prisma.material.findMany({
         where: { status: "LOW_STOCK" },
         take: 5,
         orderBy: { updatedAt: "desc" },
       }),
+      prisma.material.findMany({
+        where: { status: "OUT_OF_STOCK" },
+        select: { name: true },
+      }),
+      prisma.order.aggregate({
+        _sum: { valueEur: true },
+        where: { status: { not: "CANCELLED" } },
+      }),
     ]);
+
+    const openOrdersCount = allOrders.length;
+    const inProductionCount = allOrders.filter((o) => o.status === "IN_PRODUCTION").length;
+    const delayedCount = allOrders.filter((o) => o.status === "DELAYED").length;
+
+    const systemAlerts = [];
+
+    if (outOfStockCount > 0) {
+      systemAlerts.push({
+        type: "warning",
+        text: `${outOfStockCount} material${outOfStockCount !== 1 ? "s" : ""} out of stock. Immediate restocking required.`,
+      });
+    }
+
+    if (lowStockCount > 0) {
+      systemAlerts.push({
+        type: "warning",
+        text: `${lowStockCount} material${lowStockCount !== 1 ? "s" : ""} below minimum threshold. Order soon to avoid stockouts.`,
+      });
+    }
+
+    if (delayedCount > 0) {
+      systemAlerts.push({
+        type: "warning",
+        text: `${delayedCount} order${delayedCount !== 1 ? "s" : ""} delayed. Review production schedules and customer commitments.`,
+      });
+    }
+
+    if (inProductionCount > 0) {
+      systemAlerts.push({
+        type: "info",
+        text: `${inProductionCount} order${inProductionCount !== 1 ? "s" : ""} in production. Monitor progress to meet deadlines.`,
+      });
+    }
+
+    if (systemAlerts.length === 0) {
+      systemAlerts.push({
+        type: "info",
+        text: "All systems operational. No active alerts or issues.",
+      });
+    }
 
     return {
       totalMaterials: materialCount,
-      openOrders: orders.length,
+      inStockMaterials: inStockCount,
       lowStockItems: lowStockCount,
-      productionCapacity: Math.min(100, Math.round((materialCount / 50) * 100)),
-      recentOrders: orders.map((o) => ({
+      outOfStockItems: outOfStockCount,
+      openOrders: openOrdersCount,
+      inProductionOrders: inProductionCount,
+      totalOrderValue: totalOrderValue._sum.valueEur || 0,
+      recentOrders: recentOrders.map((o) => ({
         orderNumber: o.orderNumber,
         customer: o.customer,
         product: o.productName,
         qty: o.qty,
-        status: o.status.replace(/_/g, " "),
-        value: `€${o.valueEur.toLocaleString()}`,
-        dueDate: new Date(o.dueDate).toLocaleDateString(),
+        status: o.status,
         date: new Date(o.createdAt).toLocaleDateString(),
       })),
       lowStockAlerts: lowStockMaterials.map((m) => ({
         name: m.name,
-        status: m.status.replace(/_/g, " "),
         stock: Math.round(m.quantity),
         unit: m.unit,
-        pct: Math.round((m.quantity / 100) * 100),
       })),
-      systemAlerts: lowStockCount > 0 ? [
-        {
-          type: "warning",
-          text: `${lowStockCount} material${lowStockCount !== 1 ? "s" : ""} below stock threshold. Review inventory levels to prevent stockouts.`,
-        },
-      ] : [],
+      systemAlerts,
     };
   } catch (error) {
     console.error("Failed to fetch overview data:", error);
     return {
       totalMaterials: 0,
-      openOrders: 0,
+      inStockMaterials: 0,
       lowStockItems: 0,
-      productionCapacity: 0,
+      outOfStockItems: 0,
+      openOrders: 0,
+      inProductionOrders: 0,
+      totalOrderValue: 0,
       recentOrders: [],
       lowStockAlerts: [],
-      systemAlerts: [{ type: "warning", text: "Unable to load system data" }],
+      systemAlerts: [],
     };
   }
 }
