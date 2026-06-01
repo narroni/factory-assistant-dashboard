@@ -62,14 +62,23 @@ function GearIcon() {
     </svg>
   );
 }
+function SparkleIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M12 3v1m0 16v1M4.22 4.22l.707.707m12.126 12.126.707.707M3 12h1m16 0h1M4.22 19.78l.707-.707M18.364 5.636l.707-.707" />
+      <circle cx="12" cy="12" r="4" />
+    </svg>
+  );
+}
 
 const navItemsConfig = [
-  { key: "overview",  href: "/",          Icon: GridIcon },
+  { key: "overview",  href: "/",           Icon: GridIcon },
   { key: "materials", href: "/materials",  Icon: BoxIcon },
   { key: "products",  href: "/products",   Icon: LayersIcon },
   { key: "orders",    href: "/orders",     Icon: ClipboardIcon },
   { key: "suppliers", href: "/suppliers",  Icon: TruckIcon },
   { key: "reports",   href: "/reports",    Icon: BarChartIcon },
+  { key: "assistant", href: "/assistant",  Icon: SparkleIcon },
   { key: "settings",  href: "/settings",   Icon: GearIcon },
 ];
 

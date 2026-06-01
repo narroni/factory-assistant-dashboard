@@ -10,6 +10,7 @@ export const dictionaries: Record<Language, Record<string, string>> = {
     "nav.suppliers": "Suppliers",
     "nav.reports": "Reports",
     "nav.settings": "Settings",
+    "nav.assistant": "Assistant",
 
     // Page titles
     "page.overview": "Overview",
@@ -20,6 +21,7 @@ export const dictionaries: Record<Language, Record<string, string>> = {
     "page.reports": "Reports",
     "page.settings": "Settings",
     "page.profile": "Profile",
+    "page.assistant": "Assistant",
 
     // Page subtitles
     "subtitle.overview": "Factory operations at a glance",
@@ -30,6 +32,7 @@ export const dictionaries: Record<Language, Record<string, string>> = {
     "subtitle.reports": "Analytics, exports, and operational reports",
     "subtitle.settings": "Configure your dashboard and manage users",
     "subtitle.profile": "Manage your account and security settings",
+    "subtitle.assistant": "Ask questions about your factory data",
 
     // KPI Cards
     "kpi.total_materials": "Total Materials",
@@ -100,6 +103,7 @@ export const dictionaries: Record<Language, Record<string, string>> = {
     "nav.suppliers": "Lieferanten",
     "nav.reports": "Berichte",
     "nav.settings": "Einstellungen",
+    "nav.assistant": "Assistent",
 
     // Page titles
     "page.overview": "Übersicht",
@@ -110,6 +114,7 @@ export const dictionaries: Record<Language, Record<string, string>> = {
     "page.reports": "Berichte",
     "page.settings": "Einstellungen",
     "page.profile": "Profil",
+    "page.assistant": "Assistent",
 
     // Page subtitles
     "subtitle.overview": "Fabrikbetrieb auf einen Blick",
@@ -120,6 +125,7 @@ export const dictionaries: Record<Language, Record<string, string>> = {
     "subtitle.reports": "Analysen, Exporte und Betriebsberichte",
     "subtitle.settings": "Konfigurieren Sie Ihr Dashboard und verwalten Sie Benutzer",
     "subtitle.profile": "Verwalten Sie Ihr Konto und Ihre Sicherheitseinstellungen",
+    "subtitle.assistant": "Stellen Sie Fragen zu Ihren Fabrikdaten",
 
     // KPI Cards
     "kpi.total_materials": "Gesamtmaterialien",

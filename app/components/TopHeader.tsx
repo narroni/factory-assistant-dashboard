@@ -14,6 +14,7 @@ const pageKeys: Record<string, string> = {
   "/reports":    "reports",
   "/settings":   "settings",
   "/profile":    "profile",
+  "/assistant":  "assistant",
 };
 
 type Alert = { type: "warning" | "info"; title: string; description: string };
