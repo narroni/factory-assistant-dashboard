@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { getCurrentUser } from "../../lib/auth-helpers";
 import { useLanguage } from "../../contexts/LanguageContext";
 
@@ -149,69 +150,162 @@ const ACTION_LABELS: Record<string, string> = {
   generate_report: "Generate Report", export_data: "Export Data",
 };
 
-const STATUS_COLORS: Record<string, { bg: string; text: string }> = {
-  PENDING: { bg: "bg-amber-900/40", text: "text-amber-400" },
-  APPROVED: { bg: "bg-blue-900/40", text: "text-blue-400" },
-  REJECTED: { bg: "bg-red-900/40", text: "text-red-400" },
-  EXECUTED: { bg: "bg-emerald-900/40", text: "text-emerald-400" },
+const STATUS_COLORS: Record<string, { bg: string; border: string; text: string }> = {
+  PENDING:  { bg: "bg-zinc-800",       border: "border-zinc-700", text: "text-amber-400"  },
+  APPROVED: { bg: "bg-blue-950/40",    border: "border-blue-900", text: "text-blue-400"   },
+  REJECTED: { bg: "bg-zinc-800",       border: "border-zinc-700", text: "text-zinc-500"   },
+  EXECUTED: { bg: "bg-emerald-950/40", border: "border-emerald-900", text: "text-emerald-400" },
 };
 
-function ProposalCard({ proposal, requestId }: { proposal: Proposal; requestId?: string }) {
+type ExecutedActionInfo = {
+  id: string;
+  outputType: string;
+  outputFile: string | null;
+  outputContent: string | null;
+  executedBy: string;
+  executedAt: string;
+};
+
+function ProposalCard({
+  proposal, requestId, isAdmin,
+}: {
+  proposal: Proposal;
+  requestId?: string;
+  isAdmin: boolean;
+}) {
   const [open, setOpen] = useState(false);
   const [status, setStatus] = useState<string>("PENDING");
+  const [executedAction, setExecutedAction] = useState<ExecutedActionInfo | null>(null);
   const [loading, setLoading] = useState(!!requestId);
+  const [executing, setExecuting] = useState(false);
+  const [execError, setExecError] = useState<string | null>(null);
 
-  useEffect(() => {
+  const fetchStatus = useCallback(async () => {
     if (!requestId) return;
-    const fetchStatus = async () => {
-      try {
-        const res = await fetch("/api/ai-requests/status", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ ids: [requestId] }),
-        });
-        const data = await res.json();
-        if (data.statuses?.[requestId]?.status) {
-          setStatus(data.statuses[requestId].status);
-        }
-      } catch (e) {
-        console.error("Failed to fetch request status:", e);
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchStatus();
+    try {
+      const res = await fetch("/api/ai-requests/status", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ids: [requestId] }),
+      });
+      const data = await res.json();
+      const entry = data.statuses?.[requestId];
+      if (entry?.status) setStatus(entry.status);
+      if (entry?.executedAction) setExecutedAction(entry.executedAction);
+    } catch (e) {
+      console.error("Failed to fetch request status:", e);
+    } finally {
+      setLoading(false);
+    }
   }, [requestId]);
+
+  useEffect(() => { fetchStatus(); }, [fetchStatus]);
+
+  async function handleExecute() {
+    if (!requestId) return;
+    setExecuting(true);
+    setExecError(null);
+    try {
+      const res = await fetch(`/api/ai-requests/${requestId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "execute" }),
+      });
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.error || "Execution failed");
+      }
+      // Re-fetch status to get executedAction details
+      await fetchStatus();
+    } catch (e) {
+      setExecError(e instanceof Error ? e.message : "Execution failed");
+    } finally {
+      setExecuting(false);
+    }
+  }
 
   const colors = STATUS_COLORS[status] ?? STATUS_COLORS.PENDING;
 
   return (
-    <div className="border border-amber-800/50 bg-amber-950/20 rounded-lg p-3 space-y-2 mt-2">
+    <div className={`border ${colors.border} ${colors.bg} rounded-lg p-3 space-y-2 mt-2`}>
+      {/* Header row */}
       <div className="flex items-center justify-between gap-2">
-        <div className="flex items-center gap-2">
-          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-amber-400 shrink-0"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-          <span className="text-xs font-medium text-amber-300">Proposed: {ACTION_LABELS[proposal.actionType] ?? proposal.actionType}</span>
-        </div>
+        <span className="text-xs font-medium text-zinc-300">
+          {ACTION_LABELS[proposal.actionType] ?? proposal.actionType}
+        </span>
         {requestId && (
           <div className="flex items-center gap-2">
-            <span className={`text-xs border px-2 py-0.5 rounded-full whitespace-nowrap border-amber-800 ${colors.bg} ${colors.text}`}>
+            <span className={`text-xs px-2 py-0.5 rounded font-medium ${colors.text}`}>
               {loading ? "…" : status.charAt(0) + status.slice(1).toLowerCase()}
             </span>
-            <a
+            <Link
               href={`/ai-requests?viewId=${requestId}`}
-              className="text-xs text-blue-400 hover:text-blue-300 transition-colors"
-              title="View request details"
+              className="text-xs text-zinc-500 hover:text-zinc-300 transition-colors"
+              title="Open in AI Requests"
             >
-              →
-            </a>
+              ↗
+            </Link>
           </div>
         )}
       </div>
-      <p className="text-xs text-zinc-400 pl-4">{proposal.reasoning}</p>
-      <button onClick={() => setOpen((o) => !o)} className="text-xs text-zinc-600 hover:text-zinc-400 pl-4 transition-colors">
+
+      {/* Reasoning */}
+      <p className="text-xs text-zinc-500 leading-relaxed">{proposal.reasoning}</p>
+
+      {/* Execute button — admin only, APPROVED state */}
+      {requestId && isAdmin && status === "APPROVED" && (
+        <div className="pt-1">
+          <button
+            onClick={handleExecute}
+            disabled={executing}
+            className="flex items-center gap-1.5 text-xs px-3 py-1.5 bg-zinc-700 hover:bg-zinc-600 disabled:opacity-50 text-zinc-100 rounded-lg transition-colors font-medium"
+          >
+            {executing ? (
+              <><span className="w-3 h-3 border border-zinc-300 border-t-transparent rounded-full animate-spin" /> Executing…</>
+            ) : (
+              <>
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+                Execute
+              </>
+            )}
+          </button>
+          {execError && <p className="text-xs text-red-400 mt-1">{execError}</p>}
+        </div>
+      )}
+
+      {/* Output info — EXECUTED state */}
+      {status === "EXECUTED" && executedAction && (
+        <div className="pt-1 space-y-1 border-t border-zinc-700/50">
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-zinc-500">Executed by</span>
+            <span className="text-xs text-zinc-300">{executedAction.executedBy}</span>
+            <span className="text-xs text-zinc-600">{new Date(executedAction.executedAt).toLocaleTimeString()}</span>
+          </div>
+          {(executedAction.outputFile || executedAction.outputContent) && (
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-zinc-500">{executedAction.outputType}</span>
+              <a
+                href={`/api/outputs/${executedAction.id}/download`}
+                className="text-xs text-zinc-400 hover:text-zinc-200 transition-colors underline"
+                download
+              >
+                Download
+              </a>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Payload toggle */}
+      <button
+        onClick={() => setOpen((o) => !o)}
+        className="text-xs text-zinc-700 hover:text-zinc-500 transition-colors"
+      >
         {open ? "Hide payload" : "Show payload"}
       </button>
-      {open && <pre className="text-xs text-zinc-400 bg-zinc-900 rounded p-2 overflow-x-auto pl-4">{JSON.stringify(proposal.payload, null, 2)}</pre>}
+      {open && (
+        <pre className="text-xs text-zinc-500 bg-zinc-900/60 rounded p-2 overflow-x-auto">{JSON.stringify(proposal.payload, null, 2)}</pre>
+      )}
     </div>
   );
 }
@@ -226,7 +320,7 @@ function UserBubble({ text }: { text: string }) {
   );
 }
 
-function AssistantBubble({ msg, onRetry }: { msg: ChatMessage; onRetry?: (msgId: string) => void }) {
+function AssistantBubble({ msg, onRetry, isAdmin }: { msg: ChatMessage; onRetry?: (msgId: string) => void; isAdmin: boolean }) {
   const isPending = msg.status === "PENDING";
   const isFailed = msg.status === "FAILED";
 
@@ -282,12 +376,12 @@ function AssistantBubble({ msg, onRetry }: { msg: ChatMessage; onRetry?: (msgId:
       {msg.proposals && msg.proposals.length > 0 && (
         <div className="pl-8 space-y-2">
           {msg.proposals.map((p, i) => (
-            <ProposalCard key={i} proposal={p} requestId={msg.savedRequestIds?.[i]} />
+            <ProposalCard key={i} proposal={p} requestId={msg.savedRequestIds?.[i]} isAdmin={isAdmin} />
           ))}
-          {msg.savedRequestIds && msg.savedRequestIds.length > 0 && (
+          {msg.savedRequestIds && msg.savedRequestIds.length > 0 && !isAdmin && (
             <p className="text-xs text-zinc-600 pl-1">
               {msg.savedRequestIds.length} request{msg.savedRequestIds.length !== 1 ? "s" : ""} saved —
-              admin review required. <a href="/ai-requests" className="text-blue-400 hover:text-blue-300">View →</a>
+              <Link href="/ai-requests" className="text-zinc-500 hover:text-zinc-300 ml-1">View →</Link>
             </p>
           )}
         </div>
@@ -405,56 +499,95 @@ export default function AssistantPage() {
   const [chats, setChats] = useState<Chat[]>([]);
   const [activeChatId, setActiveChatId] = useState<string | null>(null);
   const [chatsLoading, setChatsLoading] = useState(true);
+  const userIdRef = useRef<string | null>(null);
 
   const bottomRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
-  // Load user + chats
-  useEffect(() => {
-    getCurrentUser().then((u) => {
-      if (!u) { router.replace("/login"); return; }
-      setIsAdmin(u.role === "ADMIN");
-    });
-    fetch("/api/assistant")
-      .then((r) => r.json())
-      .then((d) => { setOllamaOnline(d.ollama?.online ?? false); setOllamaModel(d.ollama?.model ?? ""); })
-      .catch(() => setOllamaOnline(false));
-    loadChats();
-  }, [router]);
+  // localStorage key scoped to user
+  function lsKey(userId: string) { return `assistant_active_chat_${userId}`; }
 
-  useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages]);
+  function persistChatId(id: string | null) {
+    if (!userIdRef.current) return;
+    if (id) localStorage.setItem(lsKey(userIdRef.current), id);
+    else localStorage.removeItem(lsKey(userIdRef.current));
+  }
+
+  function setActiveChat(id: string | null) {
+    setActiveChatId(id);
+    persistChatId(id);
+  }
 
   const loadChats = useCallback(async () => {
     setChatsLoading(true);
     try {
       const data = await (await fetch("/api/chats")).json();
       setChats(Array.isArray(data) ? data : []);
+      return Array.isArray(data) ? data as Chat[] : [];
     } finally {
       setChatsLoading(false);
     }
   }, []);
 
+  // Load user + chats, then restore last active chat
+  useEffect(() => {
+    (async () => {
+      const u = await getCurrentUser();
+      if (!u) { router.replace("/login"); return; }
+      userIdRef.current = u.id;
+      setIsAdmin(u.role === "ADMIN");
+
+      const chatList = await loadChats();
+
+      // Restore persisted chat
+      const stored = localStorage.getItem(lsKey(u.id));
+      const target = stored && chatList.find((c) => c.id === stored) ? stored
+        : chatList.length > 0 ? chatList[0].id
+        : null;
+
+      if (target) {
+        setActiveChatId(target);
+        const data = await (await fetch(`/api/chats/${target}`)).json();
+        if (data.messages) {
+          setMessages(data.messages.map((m: any) => mapMessage(m)));
+        }
+      }
+    })();
+
+    fetch("/api/assistant")
+      .then((r) => r.json())
+      .then((d) => { setOllamaOnline(d.ollama?.online ?? false); setOllamaModel(d.ollama?.model ?? ""); })
+      .catch(() => setOllamaOnline(false));
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [router]);
+
+  useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages]);
+
+  function mapMessage(m: any): ChatMessage {
+    return {
+      id: m.id,
+      role: m.role as "user" | "assistant",
+      content: m.content,
+      ollamaUsed: m.ollamaUsed,
+      proposals: m.proposals as Proposal[] | undefined,
+      createdAt: m.createdAt,
+      status: m.status as "PENDING" | "COMPLETED" | "FAILED" | undefined,
+      savedRequestIds: Array.isArray(m.savedRequestIds) ? m.savedRequestIds : [],
+    };
+  }
+
   async function selectChat(id: string) {
-    setActiveChatId(id);
+    setActiveChat(id);
     const data = await (await fetch(`/api/chats/${id}`)).json();
     if (data.messages) {
-      setMessages(data.messages.map((m: any) => ({
-        id: m.id,
-        role: m.role as "user" | "assistant",
-        content: m.content,
-        ollamaUsed: m.ollamaUsed,
-        proposals: m.proposals as Proposal[] | undefined,
-        createdAt: m.createdAt,
-        status: m.status as "PENDING" | "COMPLETED" | "FAILED" | undefined,
-        savedRequestIds: Array.isArray(m.savedRequestIds) ? m.savedRequestIds : [],
-      })));
+      setMessages(data.messages.map(mapMessage));
     }
   }
 
   async function newChat() {
     const data = await (await fetch("/api/chats", { method: "POST" })).json();
     setChats((prev) => [data, ...prev]);
-    setActiveChatId(data.id);
+    setActiveChat(data.id);
     setMessages([]);
     inputRef.current?.focus();
   }
@@ -463,7 +596,7 @@ export default function AssistantPage() {
     await fetch(`/api/chats/${id}`, { method: "DELETE" });
     setChats((prev) => prev.filter((c) => c.id !== id));
     if (activeChatId === id) {
-      setActiveChatId(null);
+      setActiveChat(null);
       setMessages([]);
     }
   }
@@ -477,7 +610,7 @@ export default function AssistantPage() {
     if (!chatId) {
       const data = await (await fetch("/api/chats", { method: "POST" })).json();
       chatId = data.id;
-      setActiveChatId(chatId);
+      setActiveChat(chatId);
       setChats((prev) => [data, ...prev]);
     }
 
@@ -561,17 +694,7 @@ export default function AssistantPage() {
             const res = await fetch(`/api/chats/${activeChatId}`);
             const data = await res.json();
             if (data.messages) {
-              const updated = data.messages.map((m: any) => ({
-                id: m.id,
-                role: m.role as "user" | "assistant",
-                content: m.content,
-                ollamaUsed: m.ollamaUsed,
-                proposals: m.proposals as Proposal[] | undefined,
-                createdAt: m.createdAt,
-                status: m.status as "PENDING" | "COMPLETED" | "FAILED" | undefined,
-                savedRequestIds: Array.isArray(m.savedRequestIds) ? m.savedRequestIds : [],
-              }));
-              setMessages(updated);
+              setMessages(data.messages.map(mapMessage));
             }
           } catch (e) {
             console.error("Polling failed:", e);
@@ -624,7 +747,7 @@ export default function AssistantPage() {
           <div className="flex-1" />
           {isAdmin && (
             <>
-              <button onClick={() => { setActiveChatId(null); setMessages([]); }} className="text-xs text-zinc-600 hover:text-zinc-400 transition-colors px-2 py-1">Clear</button>
+              <button onClick={() => { setActiveChat(null); setMessages([]); }} className="text-xs text-zinc-600 hover:text-zinc-400 transition-colors px-2 py-1">Clear</button>
               <button
                 onClick={() => setDiagOpen((o) => !o)}
                 className="flex items-center gap-1.5 text-xs text-zinc-500 hover:text-zinc-300 bg-zinc-900 hover:bg-zinc-800 border border-zinc-700 px-3 py-1.5 rounded-lg transition-colors"
@@ -675,7 +798,7 @@ export default function AssistantPage() {
               <div key={msg.id || i}>
                 {msg.role === "user"
                   ? <UserBubble text={msg.content} />
-                  : <AssistantBubble msg={msg} onRetry={msg.id ? retryMessage : undefined} />
+                  : <AssistantBubble msg={msg} onRetry={msg.id ? retryMessage : undefined} isAdmin={isAdmin} />
                 }
               </div>
             ))}

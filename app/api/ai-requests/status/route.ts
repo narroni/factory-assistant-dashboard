@@ -16,12 +16,38 @@ export async function POST(req: NextRequest) {
 
   const requests = await prisma.aIActionRequest.findMany({
     where: { id: { in: requestIds } },
-    select: { id: true, status: true, actionType: true },
+    select: {
+      id: true, status: true, actionType: true,
+      approvedAt: true,
+      approver: { select: { name: true } },
+      executedAction: {
+        select: {
+          id: true, outputType: true, outputFile: true, outputContent: true, createdAt: true,
+          executor: { select: { name: true } },
+        },
+      },
+    },
   });
 
-  const statuses: Record<string, { status: string; actionType: string }> = {};
+  const statuses: Record<string, {
+    status: string; actionType: string;
+    executedAction?: { id: string; outputType: string; outputFile: string | null; outputContent: string | null; executedBy: string; executedAt: string } | null;
+  }> = {};
   for (const req of requests) {
-    statuses[req.id] = { status: req.status, actionType: req.actionType };
+    statuses[req.id] = {
+      status: req.status,
+      actionType: req.actionType,
+      executedAction: req.executedAction
+        ? {
+            id: req.executedAction.id,
+            outputType: req.executedAction.outputType,
+            outputFile: req.executedAction.outputFile,
+            outputContent: req.executedAction.outputContent,
+            executedBy: req.executedAction.executor.name,
+            executedAt: req.executedAction.createdAt.toISOString(),
+          }
+        : null,
+    };
   }
 
   return NextResponse.json({ statuses });

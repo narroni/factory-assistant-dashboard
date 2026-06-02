@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { getOverviewData } from "./overview/actions";
 
 export const metadata: Metadata = { title: "Overview — Factory Assistant" };
@@ -50,7 +51,7 @@ export default async function OverviewPage() {
           <section className="col-span-2 bg-zinc-900 rounded-lg border border-zinc-800">
             <div className="flex items-center justify-between px-5 py-3 border-b border-zinc-800">
               <h2 className="text-sm font-semibold text-zinc-100">Recent Orders</h2>
-              <a href="/orders" className="text-xs text-zinc-500 hover:text-zinc-300 transition-colors">View all →</a>
+              <Link href="/orders" className="text-xs text-zinc-500 hover:text-zinc-300 transition-colors">View all →</Link>
             </div>
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
@@ -110,7 +111,7 @@ export default async function OverviewPage() {
 
       {/* AI Requests summary card — always shown (server renders for all roles, but only meaningful for admins) */}
       {(data.aiRequests.pending > 0 || data.aiRequests.approvedToday > 0 || data.aiRequests.executedToday > 0) && (
-        <a href="/ai-requests" className="block">
+        <Link href="/ai-requests" className="block">
           <section className="bg-zinc-900 rounded-lg border border-zinc-800 hover:border-zinc-700 transition-colors">
             <div className="flex items-center justify-between px-5 py-3 border-b border-zinc-800">
               <h2 className="text-sm font-semibold text-zinc-100">Assistant Action Requests</h2>
@@ -130,7 +131,7 @@ export default async function OverviewPage() {
               ))}
             </div>
           </section>
-        </a>
+        </Link>
       )}
 
       {/* System Insights - Always show if there are alerts */}
