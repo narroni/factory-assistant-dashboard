@@ -84,14 +84,12 @@ function detectPackagingQuery(question: string): { articleCode: string | null; q
 }
 
 async function buildPackagingContext(question: string): Promise<string> {
-  // Always include a summary of available blade products if question is packaging-related
   if (!PACKAGING_KEYWORDS.test(question)) return "";
 
-  const products = await prisma.bladeProductSpec.findMany({
-    include: { crateType: true },
-    orderBy: { articleCode: "asc" },
-  });
-  const containers = await prisma.containerType.findMany({ orderBy: { name: "asc" } });
+  const [products, containers] = await Promise.all([
+    prisma.bladeProductSpec.findMany({ include: { crateType: true }, orderBy: { articleCode: "asc" } }),
+    prisma.containerType.findMany({ orderBy: { name: "asc" } }),
+  ]);
 
   if (products.length === 0) return "";
 
@@ -105,18 +103,113 @@ async function buildPackagingContext(question: string): Promise<string> {
   ).join("\n");
 
   let calcBlock = "";
+
+  // ── Single-product calculation ─────────────────────────────────────────────
   const { articleCode, qty, containerName } = detectPackagingQuery(question);
   if (articleCode && qty && qty > 0 && containerName) {
     try {
       const result = await calculatePackaging({ articleCode, qty, containerName });
       calcBlock = `\n\n[DETERMINISTIC CALCULATION RESULT — use these exact numbers]\n${formatPackagingResultText(result)}`;
-      console.info(`[assistant] packaging calc injected: ${articleCode} × ${qty} → ${containerName}: ${result.overallFits ? "FITS" : "NO FIT"}`);
+      console.info(`[assistant] packaging calc: ${articleCode} × ${qty} → ${containerName}: ${result.overallFits ? "FITS" : "NO FIT"}`);
     } catch (e) {
       calcBlock = `\n\n[PACKAGING NOTE: Could not compute for "${articleCode}" × ${qty} → ${containerName}: ${e instanceof Error ? e.message : "unknown error"}]`;
     }
   }
 
+  // ── Order-level calculation ────────────────────────────────────────────────
+  const orderMatch = question.match(/\b(ORD-\d+)\b/i);
+  if (orderMatch) {
+    const orderNumber = orderMatch[1].toUpperCase();
+    const order = await prisma.order.findFirst({
+      where: { orderNumber: { equals: orderNumber, mode: "insensitive" } },
+      include: { lines: { include: { bladeProduct: { include: { crateType: true } } } } },
+    });
+    if (order) {
+      const linesToCalc = order.lines.length > 0
+        ? order.lines.map((l) => ({ articleCode: l.articleCode, qty: l.qty }))
+        : order.productCode ? [{ articleCode: order.productCode, qty: order.qty }] : [];
+
+      if (linesToCalc.length > 0) {
+        try {
+          const [r20, r40] = await Promise.all([
+            computeOrderTotals(linesToCalc, "20ft"),
+            computeOrderTotals(linesToCalc, "40ft"),
+          ]);
+          calcBlock += `\n\n[ORDER ${orderNumber} CALCULATION]\nCustomer: ${order.customer}\nLines:\n`;
+          for (const l of linesToCalc) {
+            calcBlock += `  ${l.articleCode} × ${l.qty.toLocaleString()} pcs\n`;
+          }
+          calcBlock += formatOrderTotals(orderNumber, r20, r40);
+          console.info(`[assistant] order calc injected: ${orderNumber}`);
+        } catch (e) {
+          calcBlock += `\n\n[ORDER ${orderNumber}: calculation error — ${e instanceof Error ? e.message : "unknown"}]`;
+        }
+      }
+    } else {
+      calcBlock += `\n\n[ORDER ${orderNumber}: not found in database]`;
+    }
+  }
+
   return `[PACKAGING CATALOG — Blade Product Specs]\n${catalog}\n\n[CONTAINERS]\n${containerSummary}` + calcBlock;
+}
+
+async function computeOrderTotals(lines: { articleCode: string; qty: number }[], containerName: string) {
+  const container = await prisma.containerType.findUnique({ where: { name: containerName } });
+  if (!container) return null;
+
+  const bps = await prisma.bladeProductSpec.findMany({
+    where: { articleCode: { in: lines.map((l) => l.articleCode) } },
+    include: { crateType: true },
+  });
+  const bpMap = Object.fromEntries(bps.map((p) => [p.articleCode, p]));
+
+  let totalNetWt = 0, totalCrateWt = 0, totalFP = 0, totalVol = 0, totalCrates = 0, totalTowers = 0;
+
+  for (const line of lines) {
+    const bp = bpMap[line.articleCode];
+    if (!bp) continue;
+    const crate = bp.crateType;
+    const fullCrates = Math.ceil(line.qty / bp.pcsPerCrate);
+    const towers = Math.ceil(fullCrates / bp.maxCratesPerTower);
+    totalNetWt += line.qty * bp.weightAfterPunchingKg;
+    totalCrateWt += fullCrates * crate.emptyWeightKg;
+    totalFP += towers * crate.xMeters * crate.zMeters;
+    totalVol += fullCrates * crate.xMeters * crate.yMeters * crate.zMeters;
+    totalCrates += fullCrates;
+    totalTowers += towers;
+  }
+
+  const totalShipmentWt = totalNetWt + totalCrateWt;
+  const floorArea = container.lengthMeters * container.widthMeters;
+  const limiters: string[] = [];
+  if (totalShipmentWt > container.maxPayloadKg) limiters.push("weight");
+  if (totalFP > floorArea) limiters.push("floor area");
+  if (totalVol > container.maxVolumeM3) limiters.push("volume");
+
+  return {
+    containerName, totalNetWt, totalCrateWt, totalShipmentWt, totalCrates, totalTowers,
+    totalFP, totalVol, floorArea,
+    maxPayload: container.maxPayloadKg, maxVol: container.maxVolumeM3,
+    fits: limiters.length === 0, limiters,
+  };
+}
+
+function formatOrderTotals(orderNumber: string, r20: Awaited<ReturnType<typeof computeOrderTotals>>, r40: Awaited<ReturnType<typeof computeOrderTotals>>) {
+  if (!r20 || !r40) return "";
+  return [
+    ``,
+    `Shipment totals:`,
+    `  Net weight: ${r20.totalNetWt.toFixed(1)} kg`,
+    `  Crate tare: ${r20.totalCrateWt.toFixed(1)} kg`,
+    `  Total: ${r20.totalShipmentWt.toFixed(1)} kg`,
+    `  Footprint: ${r20.totalFP.toFixed(2)} m²`,
+    `  Volume: ${r20.totalVol.toFixed(2)} m³`,
+    `  Crates: ${r20.totalCrates}, Towers: ${r20.totalTowers}`,
+    ``,
+    `Container fit:`,
+    `  20ft (${r20.maxPayload.toLocaleString()} kg / ${r20.floorArea.toFixed(1)} m² / ${r20.maxVol} m³): ${r20.fits ? "FITS" : "DOES NOT FIT — " + r20.limiters.join(", ")}`,
+    `  40ft (${r40.maxPayload.toLocaleString()} kg / ${r40.floorArea.toFixed(1)} m² / ${r40.maxVol} m³): ${r40.fits ? "FITS" : "DOES NOT FIT — " + r40.limiters.join(", ")}`,
+  ].join("\n");
 }
 
 // ── POST /api/assistant ───────────────────────────────────────────────────────

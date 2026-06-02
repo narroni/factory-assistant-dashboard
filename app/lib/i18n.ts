@@ -18,6 +18,7 @@ export const dictionaries: Record<Language, Record<string, string>> = {
     "nav.ai_knowledge": "Knowledge Base",
     "nav.outputs": "Outputs",
     "nav.packaging_calculator": "Packaging Calc.",
+    "nav.customers": "Customers",
 
     // Page titles
     "page.overview": "Overview",
@@ -33,6 +34,7 @@ export const dictionaries: Record<Language, Record<string, string>> = {
     "page.ai_history": "AI History",
     "page.outputs": "Generated Outputs",
     "page.packaging_calculator": "Packaging Calculator",
+    "page.customers": "Customers",
 
     // Page subtitles
     "subtitle.overview": "Factory operations at a glance",
@@ -47,6 +49,7 @@ export const dictionaries: Record<Language, Record<string, string>> = {
     "subtitle.ai_requests": "AI-proposed actions awaiting review and approval",
     "subtitle.ai_history": "Complete log of all AI interactions",
     "subtitle.packaging_calculator": "Calculate crating, weight, area, and volume for container shipments.",
+    "subtitle.customers": "Customer directory, contact info, and order history.",
 
     // KPI Cards
     "kpi.total_materials": "Total Materials",
@@ -130,6 +133,7 @@ export const dictionaries: Record<Language, Record<string, string>> = {
     "nav.ai_knowledge": "Wissensdatenbank",
     "nav.outputs": "Ausgaben",
     "nav.packaging_calculator": "Verpackungskalk.",
+    "nav.customers": "Kunden",
 
     // Page titles
     "page.overview": "Übersicht",
@@ -145,6 +149,7 @@ export const dictionaries: Record<Language, Record<string, string>> = {
     "page.ai_history": "KI-Verlauf",
     "page.outputs": "Generierte Ausgaben",
     "page.packaging_calculator": "Verpackungsrechner",
+    "page.customers": "Kunden",
 
     // Page subtitles
     "subtitle.overview": "Fabrikbetrieb auf einen Blick",

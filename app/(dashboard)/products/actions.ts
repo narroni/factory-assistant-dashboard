@@ -4,316 +4,130 @@ import { prisma } from "../../lib/prisma";
 import { requireAdmin } from "../../lib/auth-helpers";
 import { logAuditEvent } from "../../lib/audit";
 
-export type ProductStatus = "Active" | "Inactive" | "Prototype";
+export type ProductStatus = "Active" | "Inactive";
 
-export type MaterialReq = {
-  name: string;
-  qty: string;
-};
-
-export type Product = {
+export type BladeProduct = {
   id: string;
-  name: string;
-  code: string;
-  length: number;
-  width: number;
-  thickness: number;
-  weight: number;
-  volume: number;
-  material: string;
+  articleCode: string;
+  productName: string;
+  lengthMm: number;
+  widthMm: number;
+  thicknessMm: number;
+  tpi: number;
+  punchedOn: string;
+  holeDistance: string | null;
+  holeSize: string | null;
+  color: string;
+  weightBeforePunchingKg: number;
+  weightAfterPunchingKg: number;
+  pcsPerCrate: number;
+  crateTypeId: string;
+  crateCode: string;
+  maxCratesPerTower: number;
   status: ProductStatus;
-  notes: string;
-  materialRequirements: MaterialReq[];
 };
 
-// Enum mapping: UI format <-> DB format
-const statusToDb = {
-  Active: "ACTIVE",
-  Inactive: "INACTIVE",
-  Prototype: "PROTOTYPE",
-} as const;
+export type BladeProductFormData = Omit<BladeProduct, "id" | "crateCode">;
 
-const statusFromDb = {
-  ACTIVE: "Active",
-  INACTIVE: "Inactive",
-  PROTOTYPE: "Prototype",
-} as const;
-
-// Parse quantity string: "420 m²" → { value: 420, unit: "m²" }
-function parseQty(qtyString: string): { value: number; unit: string } | null {
-  const match = qtyString.match(/^([\d.]+)\s+(.+)$/);
-  if (!match) return null;
-  return { value: parseFloat(match[1]), unit: match[2] };
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function mapRow(p: any): BladeProduct {
+  return {
+    id: p.id,
+    articleCode: p.articleCode,
+    productName: p.productName,
+    lengthMm: p.lengthMm,
+    widthMm: p.widthMm,
+    thicknessMm: p.thicknessMm,
+    tpi: p.tpi,
+    punchedOn: p.punchedOn,
+    holeDistance: p.holeDistance,
+    holeSize: p.holeSize,
+    color: p.color,
+    weightBeforePunchingKg: p.weightBeforePunchingKg,
+    weightAfterPunchingKg: p.weightAfterPunchingKg,
+    pcsPerCrate: p.pcsPerCrate,
+    crateTypeId: p.crateTypeId,
+    crateCode: p.crateType.code,
+    maxCratesPerTower: p.maxCratesPerTower,
+    status: p.status === "INACTIVE" ? "Inactive" : "Active",
+  };
 }
 
-// Format quantity: { value: 420, unit: "m²" } → "420 m²"
-function formatQty(value: number, unit: string): string {
-  return `${value} ${unit}`;
+export async function getBladeProducts(): Promise<BladeProduct[]> {
+  const rows = await prisma.bladeProductSpec.findMany({
+    include: { crateType: true },
+    orderBy: { articleCode: "asc" },
+  });
+  return rows.map(mapRow);
 }
 
-export async function getProducts(): Promise<Product[]> {
-  try {
-    const dbProducts = await prisma.product.findMany({
-      include: {
-        materialRequirements: true,
-      },
-      orderBy: { createdAt: "desc" },
-    });
+export async function getCrateTypes() {
+  return prisma.crateType.findMany({ orderBy: { code: "asc" } });
+}
 
-    return dbProducts.map((p) => ({
-      id: p.id,
-      name: p.name,
-      code: p.code,
-      length: p.lengthMm,
-      width: p.widthMm,
-      thickness: p.thicknessMm,
-      weight: p.weightKg,
-      volume: p.volumeM3,
-      material: p.primaryMaterial,
-      status: statusFromDb[p.status as keyof typeof statusFromDb],
-      notes: p.notes ?? "",
-      materialRequirements: p.materialRequirements.map((mr) => ({
-        name: mr.name,
-        qty: formatQty(mr.qtyValue, mr.qtyUnit),
-      })),
-    }));
-  } catch (error) {
-    console.error("Failed to fetch products:", error);
-    throw new Error("Failed to fetch products");
+export async function addBladeProduct(data: BladeProductFormData): Promise<BladeProduct> {
+  await requireAdmin();
+  const row = await prisma.bladeProductSpec.create({
+    data: {
+      articleCode: data.articleCode,
+      productName: data.productName,
+      lengthMm: data.lengthMm,
+      widthMm: data.widthMm,
+      thicknessMm: data.thicknessMm,
+      tpi: data.tpi,
+      punchedOn: data.punchedOn,
+      holeDistance: data.holeDistance || null,
+      holeSize: data.holeSize || null,
+      color: data.color,
+      weightBeforePunchingKg: data.weightBeforePunchingKg,
+      weightAfterPunchingKg: data.weightAfterPunchingKg,
+      pcsPerCrate: data.pcsPerCrate,
+      crateTypeId: data.crateTypeId,
+      maxCratesPerTower: data.maxCratesPerTower,
+    },
+    include: { crateType: true },
+  });
+  await logAuditEvent("BladeProduct", row.id, "CREATE", undefined, { articleCode: row.articleCode });
+  return mapRow(row);
+}
+
+export async function updateBladeProduct(id: string, data: BladeProductFormData): Promise<BladeProduct> {
+  await requireAdmin();
+  const before = await prisma.bladeProductSpec.findUnique({ where: { id } });
+  const row = await prisma.bladeProductSpec.update({
+    where: { id },
+    data: {
+      articleCode: data.articleCode,
+      productName: data.productName,
+      lengthMm: data.lengthMm,
+      widthMm: data.widthMm,
+      thicknessMm: data.thicknessMm,
+      tpi: data.tpi,
+      punchedOn: data.punchedOn,
+      holeDistance: data.holeDistance || null,
+      holeSize: data.holeSize || null,
+      color: data.color,
+      weightBeforePunchingKg: data.weightBeforePunchingKg,
+      weightAfterPunchingKg: data.weightAfterPunchingKg,
+      pcsPerCrate: data.pcsPerCrate,
+      crateTypeId: data.crateTypeId,
+      maxCratesPerTower: data.maxCratesPerTower,
+    },
+    include: { crateType: true },
+  });
+  if (before) {
+    await logAuditEvent("BladeProduct", id, "UPDATE",
+      { articleCode: before.articleCode },
+      { articleCode: row.articleCode }
+    );
   }
+  return mapRow(row);
 }
 
-export async function addProduct(data: Omit<Product, "id">): Promise<Product> {
-  try {
-    await requireAdmin();
-    // Create product first
-    const dbProduct = await prisma.product.create({
-      data: {
-        name: data.name,
-        code: data.code,
-        lengthMm: data.length,
-        widthMm: data.width,
-        thicknessMm: data.thickness,
-        weightKg: data.weight,
-        volumeM3: data.volume,
-        primaryMaterial: data.material,
-        status: statusToDb[data.status],
-        notes: data.notes,
-      },
-    });
-
-    // Create material requirements
-    for (const req of data.materialRequirements) {
-      const parsed = parseQty(req.qty);
-      if (parsed) {
-        await prisma.productMaterialRequirement.create({
-          data: {
-            productId: dbProduct.id,
-            name: req.name,
-            qtyValue: parsed.value,
-            qtyUnit: parsed.unit,
-          },
-        });
-      }
-    }
-
-    // Fetch with requirements
-    const productWithReqs = await prisma.product.findUnique({
-      where: { id: dbProduct.id },
-      include: { materialRequirements: true },
-    });
-
-    if (!productWithReqs) throw new Error("Failed to create product");
-
-    await logAuditEvent("Product", productWithReqs.id, "CREATE", undefined, {
-      name: productWithReqs.name,
-      code: productWithReqs.code,
-      status: statusFromDb[productWithReqs.status as keyof typeof statusFromDb],
-      material: productWithReqs.primaryMaterial,
-    });
-
-    return {
-      id: productWithReqs.id,
-      name: productWithReqs.name,
-      code: productWithReqs.code,
-      length: productWithReqs.lengthMm,
-      width: productWithReqs.widthMm,
-      thickness: productWithReqs.thicknessMm,
-      weight: productWithReqs.weightKg,
-      volume: productWithReqs.volumeM3,
-      material: productWithReqs.primaryMaterial,
-      status: statusFromDb[productWithReqs.status as keyof typeof statusFromDb],
-      notes: productWithReqs.notes ?? "",
-      materialRequirements: productWithReqs.materialRequirements.map((mr) => ({
-        name: mr.name,
-        qty: formatQty(mr.qtyValue, mr.qtyUnit),
-      })),
-    };
-  } catch (error) {
-    console.error("Failed to add product:", error);
-    throw new Error("Failed to add product");
-  }
+export async function deleteBladeProduct(id: string): Promise<void> {
+  await requireAdmin();
+  const before = await prisma.bladeProductSpec.findUnique({ where: { id } });
+  await prisma.bladeProductSpec.delete({ where: { id } });
+  if (before) await logAuditEvent("BladeProduct", id, "DELETE", { articleCode: before.articleCode });
 }
 
-export async function updateProduct(
-  id: string,
-  data: Omit<Product, "id">
-): Promise<Product> {
-  try {
-    await requireAdmin();
-
-    const before = await prisma.product.findUnique({ where: { id } });
-
-    // Update product fields
-    const dbProduct = await prisma.product.update({
-      where: { id },
-      data: {
-        name: data.name,
-        code: data.code,
-        lengthMm: data.length,
-        widthMm: data.width,
-        thicknessMm: data.thickness,
-        weightKg: data.weight,
-        volumeM3: data.volume,
-        primaryMaterial: data.material,
-        status: statusToDb[data.status],
-        notes: data.notes,
-      },
-    });
-
-    // Delete old material requirements
-    await prisma.productMaterialRequirement.deleteMany({
-      where: { productId: id },
-    });
-
-    // Create new material requirements
-    for (const req of data.materialRequirements) {
-      const parsed = parseQty(req.qty);
-      if (parsed) {
-        await prisma.productMaterialRequirement.create({
-          data: {
-            productId: id,
-            name: req.name,
-            qtyValue: parsed.value,
-            qtyUnit: parsed.unit,
-          },
-        });
-      }
-    }
-
-    // Fetch with requirements
-    const productWithReqs = await prisma.product.findUnique({
-      where: { id },
-      include: { materialRequirements: true },
-    });
-
-    if (!productWithReqs) throw new Error("Failed to update product");
-
-    if (before) {
-      await logAuditEvent("Product", id, "UPDATE", {
-        name: before.name,
-        code: before.code,
-        status: statusFromDb[before.status as keyof typeof statusFromDb],
-        material: before.primaryMaterial,
-      }, {
-        name: productWithReqs.name,
-        code: productWithReqs.code,
-        status: statusFromDb[productWithReqs.status as keyof typeof statusFromDb],
-        material: productWithReqs.primaryMaterial,
-      });
-    }
-
-    return {
-      id: productWithReqs.id,
-      name: productWithReqs.name,
-      code: productWithReqs.code,
-      length: productWithReqs.lengthMm,
-      width: productWithReqs.widthMm,
-      thickness: productWithReqs.thicknessMm,
-      weight: productWithReqs.weightKg,
-      volume: productWithReqs.volumeM3,
-      material: productWithReqs.primaryMaterial,
-      status: statusFromDb[productWithReqs.status as keyof typeof statusFromDb],
-      notes: productWithReqs.notes ?? "",
-      materialRequirements: productWithReqs.materialRequirements.map((mr) => ({
-        name: mr.name,
-        qty: formatQty(mr.qtyValue, mr.qtyUnit),
-      })),
-    };
-  } catch (error) {
-    console.error("Failed to update product:", error);
-    throw new Error("Failed to update product");
-  }
-}
-
-export async function deleteProduct(id: string): Promise<void> {
-  try {
-    await requireAdmin();
-
-    const before = await prisma.product.findUnique({ where: { id } });
-
-    await prisma.product.delete({
-      where: { id },
-    });
-
-    if (before) {
-      await logAuditEvent("Product", id, "DELETE", {
-        name: before.name,
-        code: before.code,
-        status: statusFromDb[before.status as keyof typeof statusFromDb],
-        material: before.primaryMaterial,
-      });
-    }
-  } catch (error) {
-    console.error("Failed to delete product:", error);
-    throw new Error("Failed to delete product");
-  }
-}
-
-export async function changeProductStatus(
-  id: string,
-  status: ProductStatus
-): Promise<Product> {
-  try {
-    await requireAdmin();
-
-    const before = await prisma.product.findUnique({ where: { id } });
-
-    const dbProduct = await prisma.product.update({
-      where: { id },
-      data: {
-        status: statusToDb[status],
-      },
-      include: { materialRequirements: true },
-    });
-
-    if (before) {
-      await logAuditEvent("Product", id, "UPDATE", {
-        status: statusFromDb[before.status as keyof typeof statusFromDb],
-      }, {
-        status: statusFromDb[dbProduct.status as keyof typeof statusFromDb],
-      });
-    }
-
-    return {
-      id: dbProduct.id,
-      name: dbProduct.name,
-      code: dbProduct.code,
-      length: dbProduct.lengthMm,
-      width: dbProduct.widthMm,
-      thickness: dbProduct.thicknessMm,
-      weight: dbProduct.weightKg,
-      volume: dbProduct.volumeM3,
-      material: dbProduct.primaryMaterial,
-      status: statusFromDb[dbProduct.status as keyof typeof statusFromDb],
-      notes: dbProduct.notes ?? "",
-      materialRequirements: dbProduct.materialRequirements.map((mr) => ({
-        name: mr.name,
-        qty: formatQty(mr.qtyValue, mr.qtyUnit),
-      })),
-    };
-  } catch (error) {
-    console.error("Failed to change product status:", error);
-    throw new Error("Failed to change product status");
-  }
-}

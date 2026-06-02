@@ -18,16 +18,19 @@ const pageKeys: Record<string, string> = {
   "/ai-requests": "ai_requests",
   "/ai-history":  "ai_history",
   "/packaging-calculator": "packaging_calculator",
+  "/customers": "customers",
 };
 
 type Alert = { type: "warning" | "info"; title: string; description: string };
 
 function LiveClock() {
-  const [now, setNow] = useState(new Date());
+  const [now, setNow] = useState<Date | null>(null);
   useEffect(() => {
+    setNow(new Date());
     const id = setInterval(() => setNow(new Date()), 1000);
     return () => clearInterval(id);
   }, []);
+  if (!now) return <div className="w-24" />;
   const dateStr = now.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });
   const timeStr = now.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
   return (

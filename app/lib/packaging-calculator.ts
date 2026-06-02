@@ -27,9 +27,8 @@ export type PackagingResult = {
   pcsPerCrate: number;
   maxCratesPerTower: number;
 
-  // crate info
+  // crate info — independent crate data only (no product name in crate)
   crateCode: string;
-  crateDescription: string;
   crateEmptyWeightKg: number;
   crateXm: number;
   crateYm: number;
@@ -166,7 +165,6 @@ export async function calculatePackaging(input: PackagingInput): Promise<Packagi
     pcsPerCrate: product.pcsPerCrate,
     maxCratesPerTower: product.maxCratesPerTower,
     crateCode: crate.code,
-    crateDescription: crate.description,
     crateEmptyWeightKg: crate.emptyWeightKg,
     crateXm: crate.xMeters,
     crateYm: crate.yMeters,
@@ -207,7 +205,7 @@ export function formatPackagingResultText(r: PackagingResult): string {
     `Result: ${fit}`,
     ``,
     `Crating:`,
-    `  Crates needed: ${r.fullCrates} × ${r.crateCode} (${r.crateDescription})`,
+    `  Crates needed: ${r.fullCrates} × crate type ${r.crateCode}`,
     `  Partial last crate: ${(r.partialCrate * 100).toFixed(1)}%`,
     `  Towers: ${r.towers} (max ${r.maxCratesPerTower} crates/tower)`,
     ``,

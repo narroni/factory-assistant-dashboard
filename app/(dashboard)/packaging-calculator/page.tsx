@@ -113,7 +113,7 @@ function ResultPanel({ result }: { result: PackagingResult }) {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         {/* Crating */}
         <Card title="Crating">
-          <InfoRow label="Crate type" value={`${result.crateCode} — ${result.crateDescription}`} />
+          <InfoRow label="Crate type" value={result.crateCode} />
           <InfoRow label="Crates required" value={`${fmtN(result.fullCrates)} crates`} />
           <InfoRow label="Partial last crate" value={`${(result.partialCrate * 100).toFixed(1)}%`} />
           <InfoRow label="Towers needed" value={`${fmtN(result.towers)} towers`} />
@@ -351,7 +351,7 @@ export default function PackagingCalculatorPage() {
                   <div>
                     <p className="text-zinc-500 mb-0.5">Crate</p>
                     <p className="text-zinc-200 font-medium">{result.crateCode}</p>
-                    <p className="text-zinc-500">{result.crateDescription}</p>
+                    <p className="text-zinc-500">{result.crateEmptyWeightKg} kg empty</p>
                   </div>
                   <div>
                     <p className="text-zinc-500 mb-0.5">Dimensions (X×Y×Z)</p>

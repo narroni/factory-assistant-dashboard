@@ -34,16 +34,16 @@ async function main() {
   ]);
   console.log("Containers seeded:", c20.name, c40.name);
 
-  // ── Crate types ─────────────────────────────────────────────────────────────
+  // ── Crate types — independent crate data only; no product names ──────────────
   const crates = await Promise.all([
-    prisma.crateType.create({ data: { code: "B1", description: "Roll 1 FAS for 20mm", emptyWeightKg: 15.6, xMeters: 0.60, yMeters: 0.21, zMeters: 0.60, hasLegs: false, legsDescription: "no, only bottom" } }),
-    prisma.crateType.create({ data: { code: "B2", description: "Roll 2 FAS for 21mm", emptyWeightKg: 16.6, xMeters: 0.67, yMeters: 0.21, zMeters: 0.67, hasLegs: false, legsDescription: "no, only bottom" } }),
-    prisma.crateType.create({ data: { code: "A3", description: "RB 400 FAS",          emptyWeightKg: 12,   xMeters: 0.75, yMeters: 0.22, zMeters: 0.48, hasLegs: true,  legsDescription: "Yes" } }),
-    prisma.crateType.create({ data: { code: "A2", description: "RB 500 FAS",          emptyWeightKg: 13.5, xMeters: 0.75, yMeters: 0.22, zMeters: 0.58, hasLegs: true,  legsDescription: "Yes" } }),
-    prisma.crateType.create({ data: { code: "A1", description: "RB 600 FAS",          emptyWeightKg: 23.5, xMeters: 0.75, yMeters: 0.22, zMeters: 0.69, hasLegs: true,  legsDescription: "Yes" } }),
-    prisma.crateType.create({ data: { code: "Euro Palete", description: "RB EURO PALET", emptyWeightKg: 35, xMeters: 1.2, yMeters: 0.35, zMeters: 0.8, hasLegs: true,  legsDescription: "yes, the palet" } }),
-    prisma.crateType.create({ data: { code: "L2", description: "RB 500 LARSSON",      emptyWeightKg: 16.5, xMeters: 0.74, yMeters: 0.22, zMeters: 0.56, hasLegs: true,  legsDescription: "yes" } }),
-    prisma.crateType.create({ data: { code: "L1", description: "RB 600 LARSSON",      emptyWeightKg: 19.6, xMeters: 0.74, yMeters: 0.22, zMeters: 0.66, hasLegs: true,  legsDescription: "yes" } }),
+    prisma.crateType.create({ data: { code: "B1",         emptyWeightKg: 15.6, xMeters: 0.60, yMeters: 0.21, zMeters: 0.60, hasLegs: false, legsDescription: "no, only bottom" } }),
+    prisma.crateType.create({ data: { code: "B2",         emptyWeightKg: 16.6, xMeters: 0.67, yMeters: 0.21, zMeters: 0.67, hasLegs: false, legsDescription: "no, only bottom" } }),
+    prisma.crateType.create({ data: { code: "A3",         emptyWeightKg: 12,   xMeters: 0.75, yMeters: 0.22, zMeters: 0.48, hasLegs: true,  legsDescription: "yes" } }),
+    prisma.crateType.create({ data: { code: "A2",         emptyWeightKg: 13.5, xMeters: 0.75, yMeters: 0.22, zMeters: 0.58, hasLegs: true,  legsDescription: "yes" } }),
+    prisma.crateType.create({ data: { code: "A1",         emptyWeightKg: 23.5, xMeters: 0.75, yMeters: 0.22, zMeters: 0.69, hasLegs: true,  legsDescription: "yes" } }),
+    prisma.crateType.create({ data: { code: "Euro Palete",emptyWeightKg: 35,   xMeters: 1.2,  yMeters: 0.35, zMeters: 0.8,  hasLegs: true,  legsDescription: "yes, the palet" } }),
+    prisma.crateType.create({ data: { code: "L2",         emptyWeightKg: 16.5, xMeters: 0.74, yMeters: 0.22, zMeters: 0.56, hasLegs: true,  legsDescription: "yes" } }),
+    prisma.crateType.create({ data: { code: "L1",         emptyWeightKg: 19.6, xMeters: 0.74, yMeters: 0.22, zMeters: 0.66, hasLegs: true,  legsDescription: "yes" } }),
   ]);
   const crateMap = Object.fromEntries(crates.map((c) => [c.code, c.id]));
   console.log("Crates seeded:", crates.map((c) => c.code).join(", "));
