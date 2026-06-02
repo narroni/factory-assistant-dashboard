@@ -76,40 +76,34 @@ export async function getInventoryReport(): Promise<Report> {
 
 export async function getProductsReport(): Promise<Report> {
   try {
-    const products = await prisma.product.findMany({
-      include: {
-        materialRequirements: {
-          include: {
-            material: true,
-          },
-        },
-      },
-      orderBy: { createdAt: "asc" },
+    const products = await prisma.bladeProductSpec.findMany({
+      include: { crateType: true },
+      orderBy: { articleCode: "asc" },
     });
 
     const rows = products.map((p) => [
-      p.name,
-      p.code,
-      `${p.lengthMm} × ${p.widthMm} × ${p.thicknessMm} mm`,
-      `${(p.weightKg ?? 0).toFixed(2)} kg`,
-      `${(p.volumeM3 ?? 0).toFixed(3)} m³`,
-      p.materialRequirements.length > 0
-        ? p.materialRequirements.map((mr) => mr.name).join(", ")
-        : "—",
-      p.status,
+      p.articleCode,
+      p.productName,
+      `${p.lengthMm.toLocaleString()} × ${p.widthMm} × ${p.thicknessMm} mm`,
+      p.color,
+      `${p.tpi} TPI`,
+      p.holeDistance ?? "No holes",
+      `${p.weightAfterPunchingKg.toFixed(4)} kg`,
+      `${p.pcsPerCrate.toLocaleString()} pcs`,
+      p.crateType.code,
     ]);
 
     return {
       id: "products",
       title: "Products Report",
-      description: "Bill of materials, dimensions, and product specifications.",
+      description: "Blade product specifications, weights, and crating data.",
       lastGenerated: todayString(),
       frequency: "Weekly",
       icon: "",
       accentBorder: "border-zinc-700 bg-zinc-900",
       badge: "bg-zinc-800 text-zinc-400",
       filename: "products-report",
-      headers: ["Product", "Code", "Dimensions (mm)", "Weight (kg)", "Volume (m³)", "Materials", "Status"],
+      headers: ["Article Code", "Product Name", "Dimensions (mm)", "Color", "TPI", "Hole Pattern", "Weight/pc (kg)", "Pcs/Crate", "Crate"],
       rows,
     };
   } catch (error) {
@@ -197,60 +191,35 @@ export async function getSuppliersReport(): Promise<Report> {
 
 export async function getProductionCapacityReport(): Promise<Report> {
   try {
-    const products = await prisma.product.findMany({
-      include: {
-        materialRequirements: {
-          include: {
-            material: true,
-          },
-        },
-      },
-      orderBy: { createdAt: "asc" },
+    const products = await prisma.bladeProductSpec.findMany({
+      include: { crateType: true },
+      orderBy: { articleCode: "asc" },
     });
 
     const rows = products.map((p) => {
-      // Calculate minimum capacity: min(available_qty / required_qty_per_unit) across all required materials
-      let minCapacity = Infinity;
-
-      if (p.materialRequirements.length > 0) {
-        for (const mr of p.materialRequirements) {
-          if (mr.material) {
-            const available = mr.material.quantity;
-            const required = mr.qtyValue;
-            if (required > 0) {
-              const capacity = available / required;
-              minCapacity = Math.min(minCapacity, capacity);
-            }
-          }
-        }
-      }
-
-      const capacityUnits = Math.floor(minCapacity === Infinity ? 0 : minCapacity);
-      const capacityPercent = p.materialRequirements.length > 0 && minCapacity !== Infinity
-        ? Math.min(99, Math.round((minCapacity / 10) * 100))
-        : 0;
-
+      // Capacity estimate: one tower = maxCratesPerTower crates, each crate has pcsPerCrate pieces
+      const pcsPerTower = p.pcsPerCrate * p.maxCratesPerTower;
       return [
-        p.name,
-        p.code,
-        `${capacityUnits} units`,
-        `${capacityPercent}%`,
-        capacityPercent > 80 ? "Running" : capacityPercent > 50 ? "Maintenance" : "Limited",
-        "2-shift",
+        p.articleCode,
+        p.productName,
+        `${p.pcsPerCrate.toLocaleString()} pcs/crate`,
+        `${p.maxCratesPerTower} crates/tower (${pcsPerTower.toLocaleString()} pcs/tower)`,
+        p.crateType.code,
+        `${p.weightAfterPunchingKg.toFixed(4)} kg/pc`,
       ];
     });
 
     return {
       id: "capacity",
       title: "Production Capacity Report",
-      description: "Production line utilization, throughput rates, and capacity percentages per line.",
+      description: "Crating capacity, pcs per crate, pcs per tower, and weight per piece.",
       lastGenerated: todayString(),
       frequency: "Weekly",
-      icon: "🏭",
+      icon: "",
       accentBorder: "border-zinc-700 bg-zinc-800/30",
       badge: "bg-zinc-700 text-zinc-300",
       filename: "production-capacity-report",
-      headers: ["Product", "Code", "Capacity / Month", "Capacity Util.", "Status", "Shift"],
+      headers: ["Article Code", "Product Name", "Pcs / Crate", "Tower Capacity", "Crate Type", "Weight / pc"],
       rows,
     };
   } catch (error) {

@@ -58,14 +58,18 @@ function SignOutIcon() {
 // ── Nav config ─────────────────────────────────────────────────────────────────
 
 const mainNav = [
-  { key: "overview",              href: "/",                    Icon: GridIcon },
-  { key: "materials",             href: "/materials",           Icon: BoxIcon },
-  { key: "products",              href: "/products",            Icon: LayersIcon },
-  { key: "orders",                href: "/orders",              Icon: ClipboardIcon },
-  { key: "customers",             href: "/customers",           Icon: UsersIcon },
-  { key: "suppliers",             href: "/suppliers",           Icon: TruckIcon },
-  { key: "reports",               href: "/reports",             Icon: BarChartIcon },
-  { key: "packaging_calculator",  href: "/packaging-calculator", Icon: PackageIcon },
+  { key: "overview",   href: "/",           Icon: GridIcon },
+  { key: "materials",  href: "/materials",  Icon: BoxIcon },
+  { key: "products",   href: "/products",   Icon: LayersIcon },
+  { key: "customers",  href: "/customers",  Icon: UsersIcon },
+  { key: "suppliers",  href: "/suppliers",  Icon: TruckIcon },
+  { key: "reports",    href: "/reports",    Icon: BarChartIcon },
+];
+
+// Orders sub-group (orders + packaging calculator)
+const ordersNav = [
+  { key: "orders",               href: "/orders",               Icon: ClipboardIcon },
+  { key: "packaging_calculator", href: "/packaging-calculator", Icon: PackageIcon },
 ];
 
 const aiNav = [
@@ -141,6 +145,9 @@ export default function Sidebar() {
   const router = useRouter();
   const { language } = useLanguage();
   const [collapsed, setCollapsed] = useState(false);
+  const [ordersOpen, setOrdersOpen] = useState(
+    ordersNav.some((n) => pathname === n.href || pathname.startsWith(n.href + "/"))
+  );
   const [aiOpen, setAiOpen] = useState(
     aiNav.some((n) => pathname === n.href || pathname.startsWith(n.href + "/"))
   );
@@ -174,6 +181,7 @@ export default function Sidebar() {
   }
 
   const aiActive = aiNav.some((n) => isActive(n.href));
+  const ordersActive = ordersNav.some((n) => isActive(n.href));
 
   return (
     <aside
@@ -222,6 +230,47 @@ export default function Sidebar() {
           />
         ))}
 
+        {/* Orders group: Orders + Packaging Calculator */}
+        {collapsed ? (
+          ordersNav.map(({ key, href, Icon }) => (
+            <NavLink
+              key={key}
+              href={href}
+              Icon={Icon}
+              label={t(`nav.${key}`, language)}
+              active={isActive(href)}
+              collapsed={true}
+            />
+          ))
+        ) : (
+          <>
+            <button
+              onClick={() => setOrdersOpen((o) => !o)}
+              className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors ${
+                ordersActive ? "text-zinc-200" : "text-zinc-500 hover:bg-zinc-800 hover:text-zinc-300"
+              }`}
+            >
+              <ClipboardIcon />
+              <span className="flex-1 text-left truncate text-xs font-medium uppercase tracking-wider">{t("nav.orders_group", language)}</span>
+              <ChevronIcon open={ordersOpen} />
+            </button>
+            {ordersOpen && (
+              <div className="ml-3 pl-3 border-l border-zinc-800 flex flex-col gap-0.5 mt-0.5">
+                {ordersNav.map(({ key, href, Icon }) => (
+                  <NavLink
+                    key={key}
+                    href={href}
+                    Icon={Icon}
+                    label={t(`nav.${key}`, language)}
+                    active={isActive(href)}
+                    collapsed={false}
+                  />
+                ))}
+              </div>
+            )}
+          </>
+        )}
+
         {/* Assistant section */}
         <div className="mt-2">
           {collapsed ? (
@@ -237,13 +286,11 @@ export default function Sidebar() {
             ))
           ) : (
             <>
-              {!collapsed && <div className="h-px bg-zinc-800 mx-1 my-1.5" />}
+              <div className="h-px bg-zinc-800 mx-1 my-1.5" />
               <button
                 onClick={() => setAiOpen((o) => !o)}
                 className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors ${
-                  aiActive
-                    ? "text-zinc-200"
-                    : "text-zinc-500 hover:bg-zinc-800 hover:text-zinc-300"
+                  aiActive ? "text-zinc-200" : "text-zinc-500 hover:bg-zinc-800 hover:text-zinc-300"
                 }`}
               >
                 <SparkleIcon />

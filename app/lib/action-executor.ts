@@ -195,8 +195,8 @@ async function createProductionPlan(req: ActionExecutionRequest): Promise<Execut
     return { success: false, error: "No products specified" };
   }
 
-  const productDetails = await prisma.product.findMany({
-    where: { id: { in: products.map((p) => p.id) } },
+  const productDetails = await prisma.bladeProductSpec.findMany({
+    where: { articleCode: { in: products.map((p) => p.id as string) } },
   });
 
   const planLines = [
@@ -209,11 +209,11 @@ async function createProductionPlan(req: ActionExecutionRequest): Promise<Execut
 
   let totalDuration = 0;
   for (const p of products) {
-    const prod = productDetails.find((d) => d.id === p.id);
+    const prod = productDetails.find((d) => d.articleCode === (p.id as string));
     if (prod) {
       const duration = (p.durationDays as number) || 1;
       totalDuration += duration;
-      planLines.push(`- ${prod.code}: ${prod.name} | Qty: ${p.quantity} | Est. Duration: ${duration} days`);
+      planLines.push(`- ${prod.articleCode}: ${prod.productName} | Qty: ${p.quantity} | Est. Duration: ${duration} days`);
     }
   }
 
