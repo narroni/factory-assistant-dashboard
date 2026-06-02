@@ -1,9 +1,9 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect } from "react";
 import { useLanguage } from "../../contexts/LanguageContext";
 import { t } from "../../lib/i18n";
-import { generateCSV, generateXLSX } from "../../lib/export";
+import { generateCSV } from "../../lib/export";
 import { ModalShell } from "../../components/ModalShell";
 import { DeleteConfirm } from "../../components/DeleteConfirm";
 import { useToast, ToastList } from "../../components/Toast";
@@ -220,7 +220,7 @@ function OrderDetailPanel({
   useEffect(() => {
     if (linesToCalc.length === 0) return;
     setCalcLoading(true);
-    calculateOrderLines(linesToCalc, "20ft")
+    calculateOrderLines(linesToCalc)
       .then(({ lineCalcs: lc, totals: t }) => { setLineCalcs(lc); setTotals(t); })
       .catch(() => {})
       .finally(() => setCalcLoading(false));

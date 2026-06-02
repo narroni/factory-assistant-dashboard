@@ -25,11 +25,6 @@ type CrateType = { id: string; code: string };
 const COLORS = ["GOLD", "SILVER"];
 const PUNCHED_OPTIONS = ["Both sides", "One side", "No holes"];
 
-const statusStyles: Record<string, string> = {
-  Active:   "bg-zinc-800 text-emerald-400 border border-zinc-700",
-  Inactive: "bg-zinc-800 text-zinc-500 border border-zinc-700",
-};
-
 // ── Form ──────────────────────────────────────────────────────────────────────
 
 type FormState = Omit<BladeProductFormData, "status">;

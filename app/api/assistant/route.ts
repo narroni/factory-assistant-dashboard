@@ -5,7 +5,7 @@ import { runCopilot, checkOllamaHealth, type ConversationMessage, type ActionPro
 import { prisma } from "../../lib/prisma";
 import { calculatePackaging, formatPackagingResultText } from "../../lib/packaging-calculator";
 import { normalizeActionType, isReadOnlyQuestion } from "../../lib/action-types";
-import { findRelevantChunks, formatRelevantChunks, chunkDocument } from "../../lib/knowledge-search";
+import { findRelevantChunks, formatRelevantChunks } from "../../lib/knowledge-search";
 
 export type AssistantRequest = {
   question: string;
@@ -37,12 +37,12 @@ function shortCircuit(question: string, language: string): string | null {
     const isHowAreYou = /how\s+(are|r)\s+(you|u|ya)|how.*going|how.*doing/i.test(question);
     if (de) {
       return isHowAreYou
-        ? "Mir geht es gut, danke! Ich bin Ihr Fabrik-Copilot. Womit kann ich Ihnen helfen?"
-        : "Hallo! Ich bin Ihr Fabrik-Copilot. Ich kann Fragen zu Materialien, Bestellungen, Lieferanten und Produkten beantworten.";
+        ? "Mir geht es gut, danke! Ich bin Ihr Fabrik-Assistent. Womit kann ich Ihnen helfen?"
+        : "Hallo! Ich bin Ihr Fabrik-Assistent. Ich kann Fragen zu Materialien, Bestellungen, Lieferanten und Produkten beantworten.";
     }
     return isHowAreYou
       ? "I'm running smoothly and ready to help with your factory operations! What would you like to know?"
-      : "Hello! I'm your Factory Operations Copilot. I can answer questions about inventory, orders, suppliers, and products. What can I help you with?";
+      : "Hello! I'm your Factory Operations Assistant. I can answer questions about inventory, orders, suppliers, and products. What can I help you with?";
   }
   if (THANKS.test(question)) {
     return de

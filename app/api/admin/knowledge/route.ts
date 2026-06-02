@@ -5,7 +5,7 @@ import { parseXLSX, type XLSXParseResult } from "../../../lib/xlsx-parser";
 import { chunkDocument } from "../../../lib/knowledge-search";
 
 // GET /api/admin/knowledge — list all knowledge files
-export async function GET(req: NextRequest) {
+export async function GET() {
   const user = await getSessionUser();
   if (!user) return NextResponse.json({ error: "Unauthenticated" }, { status: 401 });
   if (user.role !== "ADMIN") return NextResponse.json({ error: "Forbidden" }, { status: 403 });

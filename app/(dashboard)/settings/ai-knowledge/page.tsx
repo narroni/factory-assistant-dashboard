@@ -92,7 +92,7 @@ export default function AIKnowledgePage() {
       });
       const updated = await res.json();
       setFiles((prev) => prev.map((f) => (f.id === id ? updated : f)));
-    } catch (err) {
+    } catch {
       setMessage("Failed to toggle file");
     }
   }
@@ -102,7 +102,7 @@ export default function AIKnowledgePage() {
     try {
       await fetch(`/api/admin/knowledge/${id}`, { method: "DELETE" });
       setFiles((prev) => prev.filter((f) => f.id !== id));
-    } catch (err) {
+    } catch {
       setMessage("Failed to delete file");
     }
   }

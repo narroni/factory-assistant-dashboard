@@ -3,7 +3,6 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { getCurrentUser } from "../../lib/auth-helpers";
-import { useLanguage } from "../../contexts/LanguageContext";
 
 type Output = {
   id: string;
@@ -17,7 +16,6 @@ type Output = {
 
 export default function OutputsPage() {
   const router = useRouter();
-  const { language } = useLanguage();
   const [outputs, setOutputs] = useState<Output[]>([]);
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
@@ -66,7 +64,7 @@ export default function OutputsPage() {
       a.click();
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
-    } catch (err) {
+    } catch {
       alert("Download failed");
     }
   }

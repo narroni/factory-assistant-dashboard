@@ -164,7 +164,7 @@ export async function updateSupplier(
     const before = await prisma.supplier.findUnique({ where: { id } });
 
     // Update supplier fields
-    const dbSupplier = await prisma.supplier.update({
+    await prisma.supplier.update({
       where: { id },
       data: {
         name: data.name,

@@ -3,7 +3,6 @@
 import { prisma } from "../../lib/prisma";
 import { requireAdmin, requireCanChangeStatus } from "../../lib/auth-helpers";
 import { logAuditEvent } from "../../lib/audit";
-import { calculatePackaging } from "../../lib/packaging-calculator";
 
 export type OrderStatus = "Pending" | "In Production" | "Completed" | "Delayed" | "Cancelled";
 
@@ -215,7 +214,6 @@ export async function changeOrderStatus(id: string, status: OrderStatus): Promis
 
 export async function calculateOrderLines(
   lines: { articleCode: string; qty: number }[],
-  containerName: string,
 ): Promise<{ lineCalcs: OrderLineCalc[]; totals: OrderTotals }> {
   const bladeProducts = await prisma.bladeProductSpec.findMany({
     where: { articleCode: { in: lines.map((l) => l.articleCode) } },

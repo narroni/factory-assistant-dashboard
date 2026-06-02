@@ -27,7 +27,7 @@ export default function ProfilePage() {
         }
         setUser(currentUser);
         setLoading(false);
-      } catch (error) {
+      } catch {
         showToast("Failed to load user profile", "error");
         setLoading(false);
       }

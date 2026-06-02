@@ -4,12 +4,10 @@
 
 import Sidebar from "../components/Sidebar";
 import TopHeader from "../components/TopHeader";
-import LayoutMountProbe from "../components/LayoutMountProbe";
 
 export default function DashboardLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
     <div className="h-full flex">
-      <LayoutMountProbe />
       <div className="hidden lg:flex">
         <Sidebar />
       </div>

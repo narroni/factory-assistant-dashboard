@@ -49,21 +49,6 @@ function Field({ label, value, type = "text", hint }: { label: string; value: st
   );
 }
 
-function SelectField({ label, value, options, hint }: { label: string; value: string; options: string[]; hint?: string }) {
-  return (
-    <div>
-      <label className="block text-xs font-medium text-zinc-400 mb-1.5">{label}</label>
-      <select
-        defaultValue={value}
-        className="w-full bg-zinc-800 border border-zinc-700 text-zinc-100 text-sm px-3 py-2.5 rounded-lg focus:outline-none focus:border-blue-500 transition-colors"
-      >
-        {options.map((o) => <option key={o}>{o}</option>)}
-      </select>
-      {hint && <p className="text-xs text-zinc-600 mt-1">{hint}</p>}
-    </div>
-  );
-}
-
 type UserFormState = {
   name: string;
   email: string;
@@ -289,7 +274,7 @@ export default function SettingsPage() {
       a.click();
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
-    } catch (err) {
+    } catch {
       showToast("Failed to download backup", "error");
     }
   }
@@ -318,7 +303,7 @@ export default function SettingsPage() {
       await loadBackups();
       showToast("Backup deleted.");
       setDeleteBackupId(null);
-    } catch (err) {
+    } catch {
       showToast("Failed to delete backup", "error");
       setDeleteBackupId(null);
     }
@@ -669,7 +654,7 @@ export default function SettingsPage() {
                                     const updated = await getUsers();
                                     setUsers(updated);
                                     showToast(u.forcePasswordChange ? "Password change requirement cleared" : "Password change required on next login", "success");
-                                  } catch (err) {
+                                  } catch {
                                     showToast("Failed to update password change setting", "error");
                                   }
                                 }}

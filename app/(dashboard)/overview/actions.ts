@@ -12,7 +12,6 @@ export async function getOverviewData() {
       allOrders,
       recentOrders,
       lowStockMaterials,
-      outOfStockMaterials,
       totalOrderValue,
     ] = await Promise.all([
       prisma.material.count(),
@@ -31,10 +30,6 @@ export async function getOverviewData() {
         where: { status: "LOW_STOCK" },
         take: 5,
         orderBy: { updatedAt: "desc" },
-      }),
-      prisma.material.findMany({
-        where: { status: "OUT_OF_STOCK" },
-        select: { name: true },
       }),
       prisma.order.aggregate({
         _sum: { valueEur: true },

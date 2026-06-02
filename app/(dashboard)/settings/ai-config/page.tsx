@@ -66,7 +66,7 @@ export default function AIConfigPage() {
       setConfig(data);
       setMessage("Configuration saved successfully!");
       setTimeout(() => setMessage(""), 3000);
-    } catch (err) {
+    } catch {
       setMessage("Failed to save configuration");
     } finally {
       setSaving(false);

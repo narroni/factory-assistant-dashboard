@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { useLanguage } from "../../contexts/LanguageContext";
 import { t } from "../../lib/i18n";
-import { generateCSV, generateXLSX, generatePDF } from "../../lib/export";
+import { generateCSV, generateXLSX } from "../../lib/export";
 import { ModalShell } from "../../components/ModalShell";
 import { DeleteConfirm } from "../../components/DeleteConfirm";
 import { useToast, ToastList } from "../../components/Toast";

@@ -62,7 +62,7 @@ function buildSystemPrompt(
   config?: { assistantName?: string; systemPrompt?: string; responseStyle?: string; allowedActions?: string[] },
   knowledge?: string,
 ): string {
-  const name = config?.assistantName ?? "Factory Operations Copilot";
+  const name = config?.assistantName ?? "Factory Operations Assistant";
   const styleGuide =
     config?.responseStyle === "detailed"
       ? "Provide comprehensive, detailed responses with explanations."
@@ -70,10 +70,6 @@ function buildSystemPrompt(
 
   const customPrompt = config?.systemPrompt ? `\n\nCUSTOM INSTRUCTIONS:\n${config.systemPrompt}` : "";
   const knowledgeSection = knowledge ? `\n\nFACTORY KNOWLEDGE:\n${knowledge}` : "";
-
-  const allowedActionTypes = (config?.allowedActions?.length ?? 0) > 0
-    ? (config!.allowedActions as string[])
-    : ["GENERATE_REPORT", "GENERATE_XLSX", "GENERATE_CSV", "GENERATE_PDF", "CREATE_PURCHASE_ORDER", "CREATE_PRODUCTION_PLAN", "INVENTORY_RECOMMENDATION"];
 
   const actionTypesText = [
     '- GENERATE_REPORT: {"reportType":"inventory|orders|products|suppliers|capacity","format":"xlsx|csv|pdf","title":"..."}',

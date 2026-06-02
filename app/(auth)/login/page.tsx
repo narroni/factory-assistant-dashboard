@@ -46,7 +46,7 @@ export default function LoginPage() {
         showToast("Login successful!", "success");
         router.push("/");
       }
-    } catch (error) {
+    } catch {
       showToast("Login failed", "error");
     } finally {
       setIsLoading(false);

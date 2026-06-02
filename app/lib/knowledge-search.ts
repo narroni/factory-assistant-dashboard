@@ -117,7 +117,7 @@ export function formatRelevantChunks(chunks: RelevantChunk[]): string {
   return [
     "RELEVANT KNOWLEDGE BASE:",
     ...chunks.map(
-      (c, i) =>
+      (c) =>
         `[${c.metadata.sourceFile}:${c.metadata.chunkIndex}]\n${c.content}`,
     ),
   ].join("\n\n");

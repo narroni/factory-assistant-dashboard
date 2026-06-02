@@ -1,14 +1,9 @@
 "use client";
 
-import { useContext, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import type { SessionUser } from "../lib/session";
 import type { Permission } from "../lib/permissions";
 import { hasPermission } from "../lib/permissions";
-
-type AuthContextType = {
-  user: SessionUser | null;
-  loading: boolean;
-};
 
 export function useAuth() {
   const [user, setUser] = useState<SessionUser | null>(null);

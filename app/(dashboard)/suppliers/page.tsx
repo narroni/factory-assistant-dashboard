@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { useLanguage } from "../../contexts/LanguageContext";
 import { t } from "../../lib/i18n";
-import { generateCSV, generateXLSX, generatePDF } from "../../lib/export";
+import { generateCSV, generateXLSX } from "../../lib/export";
 import { ModalShell } from "../../components/ModalShell";
 import { DeleteConfirm } from "../../components/DeleteConfirm";
 import { useToast, ToastList } from "../../components/Toast";
@@ -17,22 +17,6 @@ import {
   type Supplier,
   type SupplierStatus,
 } from "./actions";
-
-// ── Seed data ─────────────────────────────────────────────────────────────────
-
-const INITIAL_SUPPLIERS: Supplier[] = [
-  { id: "SUP-001", name: "TorayComposite",      contact: "Hans Müller",    email: "h.muller@toray.eu",           phone: "+49 89 4521 7800",  country: "Germany",     leadTime: "6 weeks",  materials: ["Carbon Fiber Fabric 600g"],           onTimeRate: 98, status: "Active"   },
-  { id: "SUP-002", name: "Hexion GmbH",         contact: "Laura Becker",   email: "l.becker@hexion.com",         phone: "+49 221 3344 200",  country: "Germany",     leadTime: "3 weeks",  materials: ["Epoxy Resin LR135"],                  onTimeRate: 95, status: "Active"   },
-  { id: "SUP-003", name: "FiberCo SA",          contact: "Marc Dupont",    email: "m.dupont@fiberco.fr",         phone: "+33 1 4523 8800",   country: "France",      leadTime: "4 weeks",  materials: ["Fiberglass Woven 450g"],               onTimeRate: 91, status: "Active"   },
-  { id: "SUP-004", name: "3A Composites",       contact: "David Chen",     email: "d.chen@3acomposites.com",     phone: "+41 62 855 3000",   country: "Switzerland", leadTime: "5 weeks",  materials: ["Balsa Wood Core", "Nomex Honeycomb"], onTimeRate: 94, status: "Active"   },
-  { id: "SUP-005", name: "Metalmec SRL",        contact: "Antonio Rossi",  email: "a.rossi@metalmec.it",         phone: "+39 02 4521 0099",  country: "Italy",       leadTime: "2 weeks",  materials: ["Steel Sheet D2", "Boron Steel"],      onTimeRate: 96, status: "Active"   },
-  { id: "SUP-006", name: "Special Metals Corp", contact: "James Wright",   email: "j.wright@specialmetals.com",  phone: "+1 304 455 5000",   country: "USA",         leadTime: "10 weeks", materials: ["Inconel 718 Bar"],                    onTimeRate: 99, status: "Active"   },
-  { id: "SUP-007", name: "Hexcel Corp",         contact: "Sarah Johnson",  email: "s.johnson@hexcel.com",        phone: "+1 203 969 0666",   country: "USA",         leadTime: "8 weeks",  materials: ["Nomex Honeycomb"],                    onTimeRate: 97, status: "Active"   },
-  { id: "SUP-008", name: "CopperCo",            contact: "Peter van Dam",  email: "p.vandam@copperco.nl",        phone: "+31 10 4521 200",   country: "Netherlands", leadTime: "2 weeks",  materials: ["Copper Wire 2.5mm"],                  onTimeRate: 88, status: "Warning"  },
-  { id: "SUP-009", name: "ChemPro AG",          contact: "Eva Schmidt",    email: "e.schmidt@chempro.de",        phone: "+49 69 7821 500",   country: "Germany",     leadTime: "1 week",   materials: ["Zinc Phosphate Coating"],             onTimeRate: 87, status: "Warning"  },
-  { id: "SUP-010", name: "BoltMaster",          contact: "Mikhail Petrov", email: "m.petrov@boltmaster.pl",      phone: "+48 22 5544 100",   country: "Poland",      leadTime: "1 week",   materials: ["M8 Hex Bolts A2-70"],                 onTimeRate: 82, status: "Active"   },
-  { id: "SUP-011", name: "Recticel NV",         contact: "Lotte De Smedt", email: "l.desmedt@recticel.com",      phone: "+32 2 775 1811",    country: "Belgium",     leadTime: "3 weeks",  materials: ["PU Foam Core 40kg/m³"],                onTimeRate: 93, status: "Active"   },
-];
 
 const STATUSES: SupplierStatus[] = ["Active", "Warning", "Inactive"];
 

@@ -175,7 +175,7 @@ export default function AIRulesPage() {
           </div>
         ) : (
           <ul className="divide-y divide-zinc-800">
-            {rules.map((rule, idx) => (
+            {rules.map((rule) => (
               <li key={rule.id} className="px-4 py-3">
                 {editingId === rule.id ? (
                   <div className="space-y-2">
