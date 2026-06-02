@@ -381,20 +381,14 @@ export default function SettingsPage() {
   }
 
   return (
-    <div className="px-8 py-6">
-      {/* Page Header */}
-      <div className="mb-8">
-        <h1 className="text-2xl font-bold text-zinc-100">Settings</h1>
-        <p className="text-sm text-zinc-500 mt-1">Configure your dashboard and manage users</p>
-      </div>
+    <div className="px-6 py-5">
 
       {/* Main Content Grid: 2 columns */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
-        {/* Left Column: Company & AI Settings */}
-        <div className="lg:col-span-1 space-y-6">
-          {/* Factory Identity */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-4">
+        {/* Left Column: Company settings */}
+        <div className="lg:col-span-1 space-y-4">
           <Section title="Company Settings">
-            <div className="space-y-4">
+            <div className="space-y-3">
               <Field label="Company Name" value="Narko Industries d.o.o." />
               <Field label="Factory Name" value="Production Facility — Line A/B" />
               <Field label="Factory Code" value="FAC-001" hint="Internal factory identifier used in reports and labels." />
@@ -402,93 +396,62 @@ export default function SettingsPage() {
             </div>
           </Section>
 
-          {/* AI Assistant */}
-          <Section title="AI Assistant">
-            <div className="space-y-4">
-              <Field
-                label="Assistant Name"
-                value="Factory Assistant"
-                hint="The name displayed in the dashboard header."
-              />
-              <SelectField
-                label="AI Model"
-                value="claude-sonnet-4-6"
-                options={["claude-sonnet-4-6", "claude-opus-4-8", "claude-haiku-4-5"]}
-                hint="Model used for AI-generated insights."
-              />
-              <div className="flex items-center justify-between p-3 bg-zinc-800 rounded-lg">
-                <div>
-                  <p className="text-xs font-medium text-zinc-200">AI Insights Panel</p>
-                  <p className="text-xs text-zinc-500 mt-0.5">Show AI recommendations on Overview.</p>
-                </div>
-                <div className="w-10 h-5 bg-blue-600 rounded-full flex items-center justify-end pr-0.5 cursor-pointer shrink-0">
-                  <div className="w-4 h-4 bg-white rounded-full" />
-                </div>
-              </div>
+          {/* Inventory & Alerts */}
+          <Section title="Inventory Thresholds">
+            <div className="grid grid-cols-3 gap-3">
+              <Field label="Low Stock (%)" value="25" type="number" />
+              <Field label="Critical (%)" value="10" type="number" />
+              <Field label="Buffer (days)" value="7" type="number" />
             </div>
           </Section>
         </div>
 
-        {/* Right Column: Inventory & Alerts + Audit & Compliance */}
-        <div className="lg:col-span-2 space-y-6">
-          {/* Inventory & Alerts */}
-          <Section title="Inventory & Alerts">
-            <div className="space-y-4">
-              <div className="grid grid-cols-3 gap-3">
-                <Field
-                  label="Low Stock (%)"
-                  value="25"
-                  type="number"
-                  hint="Alert when stock below minimum."
-                />
-                <Field
-                  label="Critical Stock (%)"
-                  value="10"
-                  type="number"
-                  hint="Trigger critical alert."
-                />
-                <Field
-                  label="Lead Buffer (days)"
-                  value="7"
-                  type="number"
-                  hint="Extra buffer days for lead time."
-                />
-              </div>
-              <div className="flex items-center justify-between p-3 bg-zinc-800 rounded-lg">
-                <div>
-                  <p className="text-xs font-medium text-zinc-200">Email Notifications</p>
-                  <p className="text-xs text-zinc-500 mt-0.5">Send low-stock alerts to admin email.</p>
-                </div>
-                <div className="w-10 h-5 bg-blue-600 rounded-full flex items-center justify-end pr-0.5 cursor-pointer shrink-0">
-                  <div className="w-4 h-4 bg-white rounded-full" />
-                </div>
-              </div>
-            </div>
-          </Section>
-
-          {/* Audit & Compliance */}
+        {/* Right Column: Admin links */}
+        <div className="lg:col-span-2 space-y-4">
           {isAdmin && (
-            <Link href="/settings/audit-logs">
-              <div className="bg-zinc-900 rounded-xl border border-zinc-800 p-6 hover:border-zinc-700 transition-colors cursor-pointer">
-                <div className="flex items-start justify-between">
-                  <div>
-                    <h3 className="text-sm font-semibold text-zinc-100">Audit Logs</h3>
-                    <p className="text-xs text-zinc-500 mt-1">View create, update, delete, and status change history.</p>
+            <div className="grid grid-cols-2 gap-3">
+              <Link href="/settings/audit-logs">
+                <div className="bg-zinc-900 rounded-lg border border-zinc-800 p-4 hover:border-zinc-700 transition-colors cursor-pointer h-full">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h3 className="text-sm font-semibold text-zinc-100">Audit Logs</h3>
+                      <p className="text-xs text-zinc-500 mt-0.5">Create, update, delete history.</p>
+                    </div>
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-zinc-500 shrink-0"><path d="M9 18l6-6-6-6"/></svg>
                   </div>
-                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-zinc-400 shrink-0">
-                    <path d="M9 18l6-6-6-6" />
-                  </svg>
                 </div>
-              </div>
-            </Link>
+              </Link>
+              <Link href="/settings/ai-config">
+                <div className="bg-zinc-900 rounded-lg border border-zinc-800 p-4 hover:border-zinc-700 transition-colors cursor-pointer h-full">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h3 className="text-sm font-semibold text-zinc-100">AI Configuration</h3>
+                      <p className="text-xs text-zinc-500 mt-0.5">Model, Ollama, and assistant settings.</p>
+                    </div>
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-zinc-500 shrink-0"><path d="M9 18l6-6-6-6"/></svg>
+                  </div>
+                </div>
+              </Link>
+              <Link href="/settings/ai-knowledge">
+                <div className="bg-zinc-900 rounded-lg border border-zinc-800 p-4 hover:border-zinc-700 transition-colors cursor-pointer h-full">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h3 className="text-sm font-semibold text-zinc-100">Knowledge Base</h3>
+                      <p className="text-xs text-zinc-500 mt-0.5">Factory context for the AI assistant.</p>
+                    </div>
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-zinc-500 shrink-0"><path d="M9 18l6-6-6-6"/></svg>
+                  </div>
+                </div>
+              </Link>
+            </div>
           )}
         </div>
       </div>
 
       {/* Database Backup — full width, admin only */}
       {isAdmin && (
-        <div className="mt-6">
-          <section className="bg-zinc-900 rounded-xl border border-zinc-800">
+        <div className="mt-4">
+          <section className="bg-zinc-900 rounded-lg border border-zinc-800">
             <div className="flex items-center justify-between px-6 py-4 border-b border-zinc-800">
               <div>
                 <h2 className="text-sm font-semibold text-zinc-100">Database Backup</h2>
@@ -591,16 +554,16 @@ export default function SettingsPage() {
 
       {/* User Management - Full Width */}
       {isAdmin && (
-        <div className="mt-8">
-          <div className="mb-4">
-            <h2 className="text-lg font-semibold text-zinc-100">User Management</h2>
-            <p className="text-xs text-zinc-500 mt-1">Add, edit, and manage user accounts and permissions</p>
+        <div className="mt-4">
+          <div className="mb-3">
+            <h2 className="text-sm font-semibold text-zinc-100">User Management</h2>
+            <p className="text-xs text-zinc-500 mt-0.5">Add, edit, and manage user accounts and permissions</p>
           </div>
           {loading ? (
             <div className="text-xs text-zinc-500">Loading users...</div>
           ) : (
             <>
-              <div className="bg-zinc-900 rounded-xl border border-zinc-800 overflow-hidden">
+              <div className="bg-zinc-900 rounded-lg border border-zinc-800 overflow-hidden">
                 <div className="px-6 py-4 border-b border-zinc-800 flex items-center justify-between">
                   <h3 className="text-sm font-medium text-zinc-100">Users</h3>
                   <button

@@ -425,3 +425,93 @@ model AuditLog {
   @@index([createdAt])
   @@map("audit_logs")
 }
+
+// ── Packaging / Container Calculation ─────────────────────────────────────────
+
+model CrateType {
+  id              String  @id @default(cuid())
+  code            String  @unique
+  description     String
+  emptyWeightKg   Float
+  xMeters         Float
+  yMeters         Float
+  zMeters         Float
+  hasLegs         Boolean @default(false)
+  legsDescription String?
+
+  bladeProducts   BladeProductSpec[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("crate_types")
+}
+
+model ContainerType {
+  id            String @id @default(cuid())
+  name          String @unique
+  lengthMeters  Float
+  widthMeters   Float
+  maxVolumeM3   Float
+  maxPayloadKg  Float
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("container_types")
+}
+
+model BladeProductSpec {
+  id                     String  @id @default(cuid())
+  articleCode            String  @unique
+  productName            String
+  lengthMm               Float
+  widthMm                Float
+  thicknessMm            Float
+  tpi                    Int
+  punchedOn              String
+  holeDistance           String?
+  holeSize               String?
+  color                  String
+  weightBeforePunchingKg Float
+  weightAfterPunchingKg  Float
+  pcsPerCrate            Int
+  crateTypeId            String
+  maxCratesPerTower      Int
+
+  crateType CrateType @relation(fields: [crateTypeId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([crateTypeId])
+  @@map("blade_product_specs")
+}
+
+model PackagingCalculation {
+  id               String  @id @default(cuid())
+  articleCode      String
+  productName      String
+  qty              Int
+  containerName    String
+  requiredCrates   Float
+  fullCrates       Int
+  towers           Int
+  netWeightKg      Float
+  crateWeightKg    Float
+  totalWeightKg    Float
+  footprintM2      Float
+  volumeM3         Float
+  weightFits       Boolean
+  areaFits         Boolean
+  volumeFits       Boolean
+  overallFits      Boolean
+  limitingFactors  String?
+  maxPiecesFit     Int
+
+  createdAt DateTime @default(now())
+
+  @@index([articleCode])
+  @@index([createdAt])
+  @@map("packaging_calculations")
+}

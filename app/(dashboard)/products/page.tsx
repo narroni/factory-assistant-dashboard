@@ -52,22 +52,40 @@ function formatVolume(v: number): string {
 
 // ── Form state ────────────────────────────────────────────────────────────────
 
+const REF_PREFIX = "[ref]: ";
+
+function extractRef(notes: string): { notes: string; referenceUrl: string } {
+  const lines = notes.split("\n");
+  const refIdx = lines.findIndex((l) => l.trim().startsWith(REF_PREFIX));
+  if (refIdx === -1) return { notes, referenceUrl: "" };
+  const referenceUrl = lines[refIdx].trim().slice(REF_PREFIX.length).trim();
+  const cleaned = lines.filter((_, i) => i !== refIdx).join("\n").trim();
+  return { notes: cleaned, referenceUrl };
+}
+
+function mergeRef(notes: string, referenceUrl: string): string {
+  const base = notes.split("\n").filter((l) => !l.trim().startsWith(REF_PREFIX)).join("\n").trim();
+  if (!referenceUrl.trim()) return base;
+  return base ? `${base}\n${REF_PREFIX}${referenceUrl.trim()}` : `${REF_PREFIX}${referenceUrl.trim()}`;
+}
+
 type FormState = {
   name: string; code: string;
   length: number; width: number; thickness: number;
   weight: number; volume: number;
   material: string; status: ProductStatus;
-  notes: string; materialRequirements: MaterialReq[];
+  notes: string; referenceUrl: string; materialRequirements: MaterialReq[];
 };
 
 const EMPTY_FORM: FormState = {
   name: "", code: "", length: 0, width: 0, thickness: 0,
   weight: 0, volume: 0, material: "", status: "Active",
-  notes: "", materialRequirements: [],
+  notes: "", referenceUrl: "", materialRequirements: [],
 };
 
 function productToForm(p: Product): FormState {
-  return { name: p.name, code: p.code, length: p.length, width: p.width, thickness: p.thickness, weight: p.weight, volume: p.volume, material: p.material, status: p.status, notes: p.notes, materialRequirements: p.materialRequirements.map((r) => ({ ...r })) };
+  const { notes, referenceUrl } = extractRef(p.notes || "");
+  return { name: p.name, code: p.code, length: p.length, width: p.width, thickness: p.thickness, weight: p.weight, volume: p.volume, material: p.material, status: p.status, notes, referenceUrl, materialRequirements: p.materialRequirements.map((r) => ({ ...r })) };
 }
 
 // ── Product Form Modal ────────────────────────────────────────────────────────
@@ -127,6 +145,10 @@ function ProductModal({ mode, form, onChange, onSave, onClose }: {
         <div>
           <Label>Production Notes</Label>
           <textarea value={form.notes} onChange={(e) => onChange("notes", e.target.value)} placeholder="Describe processing requirements, tolerances, quality specifications…" rows={3} className="w-full bg-zinc-800 border border-zinc-700 text-zinc-100 text-sm px-3 py-2.5 rounded-lg focus:outline-none focus:border-blue-500 transition-colors placeholder:text-zinc-600 resize-none" />
+        </div>
+        <div>
+          <Label>Reference URL <span className="text-zinc-600 font-normal">(optional)</span></Label>
+          <input type="url" value={form.referenceUrl} onChange={(e) => onChange("referenceUrl", e.target.value)} placeholder="https://… (PDF datasheet, drawing, or image link)" className="w-full bg-zinc-800 border border-zinc-700 text-zinc-100 text-sm px-3 py-2.5 rounded-lg focus:outline-none focus:border-blue-500 transition-colors placeholder:text-zinc-600" />
         </div>
         <div>
           <div className="flex items-center justify-between mb-3">
@@ -220,12 +242,29 @@ function DetailPanel({ product, onClose, onEdit, onDelete }: {
             </ul>
           </div>
         )}
-        {product.notes && (
-          <div>
-            <h3 className="text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-3">Production Notes</h3>
-            <p className="text-xs text-zinc-400 leading-relaxed bg-zinc-800 rounded-lg px-4 py-3">{product.notes}</p>
-          </div>
-        )}
+        {product.notes && (() => {
+          const { notes, referenceUrl } = extractRef(product.notes);
+          return (
+            <>
+              {notes && (
+                <div>
+                  <h3 className="text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-3">Production Notes</h3>
+                  <p className="text-xs text-zinc-400 leading-relaxed bg-zinc-800 rounded-lg px-4 py-3">{notes}</p>
+                </div>
+              )}
+              {referenceUrl && (
+                <div>
+                  <h3 className="text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-2">Reference</h3>
+                  <a href={referenceUrl} target="_blank" rel="noopener noreferrer"
+                    className="inline-flex items-center gap-2 text-xs text-blue-400 hover:text-blue-300 bg-zinc-800 px-3 py-2 rounded-lg transition-colors max-w-full truncate">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+                    <span className="truncate">{referenceUrl}</span>
+                  </a>
+                </div>
+              )}
+            </>
+          );
+        })()}
       </div>
       <div className="flex items-center gap-2 px-6 py-4 border-t border-zinc-800 shrink-0">
         <button onClick={() => onEdit(product)} className="flex-1 py-2 text-xs font-medium text-white bg-blue-600 hover:bg-blue-500 rounded-lg transition-colors">Edit Product</button>
@@ -307,14 +346,15 @@ export default function ProductsPage() {
 
   async function saveItem() {
     if (!form.name.trim() || !form.code.trim() || !form.material.trim()) return;
+    const formToSave = { ...form, notes: mergeRef(form.notes, form.referenceUrl) };
     try {
       if (formMode === "add") {
-        const newProduct = await addProduct(form);
+        const newProduct = await addProduct(formToSave);
         setItems((prev) => [newProduct, ...prev]);
         setSelectedId(newProduct.id);
         showToast("Product added successfully.");
       } else if (editingId) {
-        const updated = await updateProduct(editingId, form);
+        const updated = await updateProduct(editingId, formToSave);
         setItems((prev) => prev.map((p) => p.id === editingId ? updated : p));
         showToast("Product updated.");
       }

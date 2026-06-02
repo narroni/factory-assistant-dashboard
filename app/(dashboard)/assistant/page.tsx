@@ -234,8 +234,8 @@ function AssistantBubble({ msg, onRetry }: { msg: ChatMessage; onRetry?: (msgId:
     return (
       <div className="space-y-2">
         <div className="flex items-center gap-2">
-          <div className="w-6 h-6 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white shrink-0" style={{ fontSize: 11 }}>✦</div>
-          <span className="text-xs text-zinc-500">Factory Copilot</span>
+          <div className="w-5 h-5 rounded bg-zinc-700 flex items-center justify-center text-zinc-300 shrink-0" style={{ fontSize: 10 }}>A</div>
+          <span className="text-xs text-zinc-500">Assistant</span>
         </div>
         <div className="flex items-center gap-2 pl-8">
           <div className="flex gap-1 px-3 py-2 bg-zinc-800 rounded-2xl rounded-tl-sm">
@@ -251,8 +251,8 @@ function AssistantBubble({ msg, onRetry }: { msg: ChatMessage; onRetry?: (msgId:
     return (
       <div className="space-y-2">
         <div className="flex items-center gap-2">
-          <div className="w-6 h-6 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white shrink-0" style={{ fontSize: 11 }}>✦</div>
-          <span className="text-xs text-zinc-500">Factory Copilot</span>
+          <div className="w-5 h-5 rounded bg-zinc-700 flex items-center justify-center text-zinc-300 shrink-0" style={{ fontSize: 10 }}>A</div>
+          <span className="text-xs text-zinc-500">Assistant</span>
         </div>
         <div className="pl-8 space-y-2">
           <div className="bg-red-950/30 border border-red-900/50 rounded p-3 space-y-2">
@@ -275,12 +275,8 @@ function AssistantBubble({ msg, onRetry }: { msg: ChatMessage; onRetry?: (msgId:
   return (
     <div className="space-y-2">
       <div className="flex items-center gap-2">
-        <div className="w-6 h-6 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white shrink-0" style={{ fontSize: 11 }}>✦</div>
-        <span className="text-xs text-zinc-500">Factory Copilot</span>
-        {msg.ollamaUsed && <span className="text-xs bg-purple-950 border border-purple-800 text-purple-400 px-2 py-0.5 rounded-full">llm</span>}
-        {!msg.ollamaUsed && msg.role === "assistant" && (
-          <span className="text-xs bg-zinc-800 border border-zinc-700 text-zinc-600 px-2 py-0.5 rounded-full">fallback</span>
-        )}
+        <div className="w-5 h-5 rounded bg-zinc-700 flex items-center justify-center text-zinc-300 shrink-0" style={{ fontSize: 10 }}>A</div>
+        <span className="text-xs text-zinc-500">Assistant</span>
       </div>
       <p className="text-sm text-zinc-200 leading-relaxed pl-8 whitespace-pre-line">{msg.content}</p>
       {msg.proposals && msg.proposals.length > 0 && (
@@ -613,26 +609,25 @@ export default function AssistantPage() {
           <div className="max-w-3xl mx-auto space-y-6">
             {isEmpty && (
               <div className="flex flex-col items-center justify-center pt-12 pb-6 text-center space-y-4">
-                <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white text-2xl shadow-lg shadow-blue-900/30">✦</div>
+                <div className="w-10 h-10 rounded-xl bg-zinc-800 border border-zinc-700 flex items-center justify-center text-zinc-300 text-lg font-semibold">A</div>
                 <div className="space-y-1">
-                  <h2 className="text-xl font-semibold text-zinc-100">Factory Operations Copilot</h2>
+                  <h2 className="text-lg font-semibold text-zinc-100">Factory Assistant</h2>
                   <p className="text-sm text-zinc-500 max-w-md">Ask anything about your inventory, orders, suppliers, or production.</p>
                 </div>
-                <div className="flex items-center gap-2 flex-wrap justify-center">
-                  <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-950 border border-amber-900 text-amber-400 text-xs font-medium">
-                    <span className="w-1.5 h-1.5 rounded-full bg-amber-400"/>Read-only · Actions require approval
-                  </span>
-                  {ollamaOnline === true && (
-                    <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-purple-950 border border-purple-900 text-purple-400 text-xs font-medium">
-                      <span className="w-1.5 h-1.5 rounded-full bg-purple-400"/>{ollamaModel}
-                    </span>
-                  )}
-                  {ollamaOnline === false && (
-                    <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-zinc-900 border border-zinc-700 text-zinc-500 text-xs font-medium">
-                      <span className="w-1.5 h-1.5 rounded-full bg-zinc-600"/>Ollama offline
-                    </span>
-                  )}
-                </div>
+                {isAdmin && (
+                  <div className="flex items-center gap-2 flex-wrap justify-center">
+                    {ollamaOnline === true && (
+                      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded bg-zinc-800 border border-zinc-700 text-zinc-400 text-xs">
+                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"/>{ollamaModel}
+                      </span>
+                    )}
+                    {ollamaOnline === false && (
+                      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded bg-zinc-900 border border-zinc-700 text-zinc-500 text-xs">
+                        <span className="w-1.5 h-1.5 rounded-full bg-zinc-600"/>Ollama offline
+                      </span>
+                    )}
+                  </div>
+                )}
                 <div className="flex flex-wrap gap-2 justify-center max-w-xl pt-2">
                   {SUGGESTIONS.map((s) => (
                     <button key={s} onClick={() => send(s)} disabled={sending}

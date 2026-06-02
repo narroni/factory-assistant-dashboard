@@ -3,6 +3,7 @@ import { getSessionUser } from "../../lib/session";
 import { loadFactoryContext } from "../../lib/factory-context";
 import { runCopilot, checkOllamaHealth, type ConversationMessage, type ActionProposal } from "../../lib/ollama";
 import { prisma } from "../../lib/prisma";
+import { calculatePackaging, formatPackagingResultText } from "../../lib/packaging-calculator";
 
 export type AssistantRequest = {
   question: string;
@@ -52,6 +53,70 @@ function shortCircuit(question: string, language: string): string | null {
       : "I can help with: inventory analysis, order tracking, supplier performance, production planning, capacity estimates, and report generation. Just ask me anything about your factory data.";
   }
   return null;
+}
+
+// ── Packaging context helpers ─────────────────────────────────────────────────
+
+const PACKAGING_KEYWORDS = /\b(ship|container|crate|crating|tower|pallet|20ft|40ft|packaging|pack|pieces|pcs|payload|volume|footprint|cargo|load|fit)\b/i;
+
+// Try to extract (articleCode, quantity, containerType) from a free-text question
+function detectPackagingQuery(question: string): { articleCode: string | null; qty: number | null; containerName: string | null } {
+  // Container type
+  let containerName: string | null = null;
+  if (/\b40\s*ft\b|\b40\s*foot\b|\b40-foot\b/i.test(question)) containerName = "40ft";
+  else if (/\b20\s*ft\b|\b20\s*foot\b|\b20-foot\b/i.test(question)) containerName = "20ft";
+
+  // Quantity: look for number followed by "pieces", "pcs", "units", or just a large standalone number
+  let qty: number | null = null;
+  const qtyMatch = question.match(/\b(\d[\d,\s]*\d|\d+)\s*(?:pieces?|pcs?|units?)/i)
+    ?? question.match(/\b([\d,]+)\s+(?:of|x)\s+[A-Z]/i)
+    ?? question.match(/\b(\d{4,})\b/);
+  if (qtyMatch) {
+    qty = parseInt(qtyMatch[1].replace(/[,\s]/g, ""), 10) || null;
+  }
+
+  // Article code: known codes or pattern like RD..., RR..., RL...
+  let articleCode: string | null = null;
+  const codeMatch = question.match(/\b(RD001\s+EURO\s+PALET|RDG500\/1[,.]25|RDG600\/1[,.]25|RDL002|RDL011\s+LARSSON|RDL011\/1[,.]4|RDL011\/1[,.]6|RLG500\/1[,.]6s|RDL400[^,\s"]+|RR021\/150|RR030|RR031)\b/i);
+  if (codeMatch) articleCode = codeMatch[1].trim();
+
+  return { articleCode, qty, containerName };
+}
+
+async function buildPackagingContext(question: string): Promise<string> {
+  // Always include a summary of available blade products if question is packaging-related
+  if (!PACKAGING_KEYWORDS.test(question)) return "";
+
+  const products = await prisma.bladeProductSpec.findMany({
+    include: { crateType: true },
+    orderBy: { articleCode: "asc" },
+  });
+  const containers = await prisma.containerType.findMany({ orderBy: { name: "asc" } });
+
+  if (products.length === 0) return "";
+
+  const catalog = products.map((p) =>
+    `  ${p.articleCode}: ${p.productName}, ${p.lengthMm}×${p.widthMm}×${p.thicknessMm}mm, ` +
+    `${p.pcsPerCrate} pcs/crate (${p.crateType.code}), ${p.weightAfterPunchingKg} kg/pc (punched), max ${p.maxCratesPerTower} crates/tower`
+  ).join("\n");
+
+  const containerSummary = containers.map((c) =>
+    `  ${c.name}: ${c.lengthMeters}m × ${c.widthMeters}m floor, max ${c.maxPayloadKg.toLocaleString()} kg, max ${c.maxVolumeM3} m³`
+  ).join("\n");
+
+  let calcBlock = "";
+  const { articleCode, qty, containerName } = detectPackagingQuery(question);
+  if (articleCode && qty && qty > 0 && containerName) {
+    try {
+      const result = await calculatePackaging({ articleCode, qty, containerName });
+      calcBlock = `\n\n[DETERMINISTIC CALCULATION RESULT — use these exact numbers]\n${formatPackagingResultText(result)}`;
+      console.info(`[assistant] packaging calc injected: ${articleCode} × ${qty} → ${containerName}: ${result.overallFits ? "FITS" : "NO FIT"}`);
+    } catch (e) {
+      calcBlock = `\n\n[PACKAGING NOTE: Could not compute for "${articleCode}" × ${qty} → ${containerName}: ${e instanceof Error ? e.message : "unknown error"}]`;
+    }
+  }
+
+  return `[PACKAGING CATALOG — Blade Product Specs]\n${catalog}\n\n[CONTAINERS]\n${containerSummary}` + calcBlock;
 }
 
 // ── POST /api/assistant ───────────────────────────────────────────────────────
@@ -168,11 +233,25 @@ export async function POST(req: NextRequest) {
     const knowledge = await prisma.factoryKnowledge.findMany({
       where: { enabled: true },
       orderBy: { createdAt: "asc" },
-      take: 5, // Limit to 5 files to avoid token explosion
+      take: 5,
     });
     knowledgeText = knowledge.map((k) => `[${k.filename}]\n${k.content}`).join("\n\n");
   } catch (err) {
     // Silently fail; config is optional
+  }
+
+  // ── Packaging calculator context ───────────────────────────────────────────
+  let packagingContext = "";
+  try {
+    packagingContext = await buildPackagingContext(question);
+  } catch (err) {
+    // Non-fatal: packaging context injection is best-effort
+    console.warn("[assistant] packaging context failed:", err);
+  }
+  if (packagingContext) {
+    knowledgeText = knowledgeText
+      ? `${knowledgeText}\n\n${packagingContext}`
+      : packagingContext;
   }
 
   // ── Call Ollama ────────────────────────────────────────────────────────────

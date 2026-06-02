@@ -13,10 +13,11 @@ export const dictionaries: Record<Language, Record<string, string>> = {
     "nav.assistant": "Assistant",
     "nav.ai_requests": "AI Requests",
     "nav.ai_history": "AI History",
-    "nav.ai_group": "AI Copilot",
+    "nav.ai_group": "Assistant",
     "nav.ai_config": "AI Configuration",
     "nav.ai_knowledge": "Knowledge Base",
     "nav.outputs": "Outputs",
+    "nav.packaging_calculator": "Packaging Calc.",
 
     // Page titles
     "page.overview": "Overview",
@@ -31,6 +32,7 @@ export const dictionaries: Record<Language, Record<string, string>> = {
     "page.ai_requests": "AI Requests",
     "page.ai_history": "AI History",
     "page.outputs": "Generated Outputs",
+    "page.packaging_calculator": "Packaging Calculator",
 
     // Page subtitles
     "subtitle.overview": "Factory operations at a glance",
@@ -41,9 +43,10 @@ export const dictionaries: Record<Language, Record<string, string>> = {
     "subtitle.reports": "Analytics, exports, and operational reports",
     "subtitle.settings": "Configure your dashboard and manage users",
     "subtitle.profile": "Manage your account and security settings",
-    "subtitle.assistant": "Factory Operations Copilot — powered by local AI",
+    "subtitle.assistant": "Chat with your factory assistant about inventory, orders, and production.",
     "subtitle.ai_requests": "AI-proposed actions awaiting review and approval",
     "subtitle.ai_history": "Complete log of all AI interactions",
+    "subtitle.packaging_calculator": "Calculate crating, weight, area, and volume for container shipments.",
 
     // KPI Cards
     "kpi.total_materials": "Total Materials",
@@ -80,6 +83,11 @@ export const dictionaries: Record<Language, Record<string, string>> = {
     "btn.reset_pwd": "Reset Pwd",
     "btn.deactivate": "Deactivate",
     "btn.activate": "Activate",
+    "btn.sign_out": "Sign Out",
+
+    // Header
+    "header.notifications": "Notifications",
+    "header.no_notifications": "No new notifications",
 
     // Status values
     "status.in_stock": "In Stock",
@@ -117,10 +125,11 @@ export const dictionaries: Record<Language, Record<string, string>> = {
     "nav.assistant": "Assistent",
     "nav.ai_requests": "KI-Anfragen",
     "nav.ai_history": "KI-Verlauf",
-    "nav.ai_group": "KI-Copilot",
+    "nav.ai_group": "Assistent",
     "nav.ai_config": "KI-Konfiguration",
     "nav.ai_knowledge": "Wissensdatenbank",
     "nav.outputs": "Ausgaben",
+    "nav.packaging_calculator": "Verpackungskalk.",
 
     // Page titles
     "page.overview": "Übersicht",
@@ -135,6 +144,7 @@ export const dictionaries: Record<Language, Record<string, string>> = {
     "page.ai_requests": "KI-Anfragen",
     "page.ai_history": "KI-Verlauf",
     "page.outputs": "Generierte Ausgaben",
+    "page.packaging_calculator": "Verpackungsrechner",
 
     // Page subtitles
     "subtitle.overview": "Fabrikbetrieb auf einen Blick",
@@ -145,9 +155,10 @@ export const dictionaries: Record<Language, Record<string, string>> = {
     "subtitle.reports": "Analysen, Exporte und Betriebsberichte",
     "subtitle.settings": "Konfigurieren Sie Ihr Dashboard und verwalten Sie Benutzer",
     "subtitle.profile": "Verwalten Sie Ihr Konto und Ihre Sicherheitseinstellungen",
-    "subtitle.assistant": "Fabrik-Copilot — lokale KI für Betriebsanalysen",
+    "subtitle.assistant": "Chatten Sie mit Ihrem Fabrik-Assistenten über Lager, Bestellungen und Produktion.",
     "subtitle.ai_requests": "KI-Vorschläge zur Überprüfung und Genehmigung",
     "subtitle.ai_history": "Vollständiges Protokoll aller KI-Interaktionen",
+    "subtitle.packaging_calculator": "Kistung, Gewicht, Fläche und Volumen für Containerladungen berechnen.",
 
     // KPI Cards
     "kpi.total_materials": "Gesamtmaterialien",
@@ -184,6 +195,11 @@ export const dictionaries: Record<Language, Record<string, string>> = {
     "btn.reset_pwd": "Passwort zurücksetzen",
     "btn.deactivate": "Deaktivieren",
     "btn.activate": "Aktivieren",
+    "btn.sign_out": "Abmelden",
+
+    // Header
+    "header.notifications": "Benachrichtigungen",
+    "header.no_notifications": "Keine neuen Benachrichtigungen",
 
     // Status values
     "status.in_stock": "Auf Lager",
@@ -198,6 +214,46 @@ export const dictionaries: Record<Language, Record<string, string>> = {
     "status.inactive": "Inaktiv",
     "status.prototype": "Prototyp",
     "status.warning": "Warnung",
+
+    // Table headers / common labels
+    "label.name": "Name",
+    "label.code": "Code",
+    "label.status": "Status",
+    "label.material": "Material",
+    "label.supplier": "Lieferant",
+    "label.contact": "Kontakt",
+    "label.email": "E-Mail",
+    "label.phone": "Telefon",
+    "label.country": "Land",
+    "label.lead_time": "Lieferzeit",
+    "label.on_time": "Pünktlichkeit",
+    "label.qty": "Menge",
+    "label.date": "Datum",
+    "label.notes": "Notizen",
+    "label.actions": "Aktionen",
+    "label.order_id": "Bestellnr.",
+    "label.customer": "Kunde",
+    "label.product": "Produkt",
+    "label.due_date": "Fälligkeitsdatum",
+    "label.value": "Wert",
+
+    // Filters / pagination
+    "filter.all": "Alle",
+    "filter.search": "Suchen…",
+    "filter.rows_per_page": "Zeilen pro Seite:",
+    "filter.showing": "Anzeige",
+    "filter.of": "von",
+    "filter.previous": "Zurück",
+    "filter.next": "Weiter",
+    "filter.no_results": "Keine Ergebnisse",
+    "filter.clear_filters": "Filter zurücksetzen",
+
+    // Empty states
+    "empty.no_materials": "Keine Materialien gefunden.",
+    "empty.no_products": "Keine Produkte gefunden.",
+    "empty.no_orders": "Keine Bestellungen gefunden.",
+    "empty.no_suppliers": "Keine Lieferanten gefunden.",
+    "empty.no_reports": "Keine Berichte verfügbar.",
 
     // Login
     "login.email": "E-Mail",

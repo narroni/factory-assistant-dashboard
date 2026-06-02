@@ -101,14 +101,19 @@ const RECENT_ACTIVITY = [
   { report: "Production Capacity","date": "2026-05-27 06:00", user: "System (auto)", size: "290 KB" },
 ];
 
+const REPORT_TYPE_ALL = "All";
+
 // ── Page ──────────────────────────────────────────────────────────────────────
 
 export default function ReportsPage() {
-  const [reports, setReports]     = useState<Report[]>([]);
-  const [loading, setLoading]     = useState(true);
-  const [error, setError]         = useState<string | null>(null);
-  const [preview, setPreview]     = useState<Report | null>(null);
-  const { toasts, showToast }     = useToast();
+  const [reports, setReports]         = useState<Report[]>([]);
+  const [loading, setLoading]         = useState(true);
+  const [error, setError]             = useState<string | null>(null);
+  const [preview, setPreview]         = useState<Report | null>(null);
+  const [typeFilter, setTypeFilter]   = useState<string>(REPORT_TYPE_ALL);
+  const [dateFrom, setDateFrom]       = useState("");
+  const [dateTo, setDateTo]           = useState("");
+  const { toasts, showToast }         = useToast();
 
   useEffect(() => {
     (async () => {
@@ -136,24 +141,75 @@ export default function ReportsPage() {
     showToast(`Opening print view for ${report.title}…`, "info");
   }
 
+  const reportTypes = [REPORT_TYPE_ALL, ...Array.from(new Set(reports.map((r) => r.title.split(" ")[0])))];
+
+  const filteredReports = reports.filter((r) => {
+    if (typeFilter !== REPORT_TYPE_ALL && !r.title.startsWith(typeFilter)) return false;
+    return true;
+  });
+
+  const filteredActivity = RECENT_ACTIVITY.filter((a) => {
+    if (typeFilter !== REPORT_TYPE_ALL && !a.report.startsWith(typeFilter)) return false;
+    if (dateFrom && a.date < dateFrom) return false;
+    if (dateTo && a.date > dateTo + " 99") return false;
+    return true;
+  });
+
+  const hasFilters = typeFilter !== REPORT_TYPE_ALL || dateFrom || dateTo;
+
   return (
-    <div className="px-8 py-6 space-y-6">
+    <div className="px-6 py-5 space-y-5">
       {loading && (
-        <div className="bg-blue-900/50 border border-blue-800 text-blue-300 px-4 py-3 rounded-lg text-sm">
-          Loading reports...
+        <div className="bg-zinc-800 border border-zinc-700 text-zinc-300 px-4 py-2.5 rounded-lg text-xs">
+          Loading reports…
         </div>
       )}
       {error && (
-        <div className="bg-red-900/50 border border-red-800 text-red-300 px-4 py-3 rounded-lg text-sm">
+        <div className="bg-red-900/40 border border-red-800 text-red-300 px-4 py-2.5 rounded-lg text-xs">
           {error}
         </div>
       )}
 
+      {/* Filters */}
+      <div className="flex items-center gap-3 flex-wrap">
+        <select
+          value={typeFilter}
+          onChange={(e) => setTypeFilter(e.target.value)}
+          className="bg-zinc-900 border border-zinc-700 text-zinc-300 text-xs px-3 py-2 rounded-lg focus:outline-none focus:border-zinc-500 transition-colors"
+        >
+          {reportTypes.map((t) => <option key={t}>{t}</option>)}
+        </select>
+        <div className="flex items-center gap-2">
+          <span className="text-xs text-zinc-500">From</span>
+          <input
+            type="date"
+            value={dateFrom}
+            onChange={(e) => setDateFrom(e.target.value)}
+            className="bg-zinc-900 border border-zinc-700 text-zinc-300 text-xs px-3 py-2 rounded-lg focus:outline-none focus:border-zinc-500 transition-colors"
+          />
+          <span className="text-xs text-zinc-500">To</span>
+          <input
+            type="date"
+            value={dateTo}
+            onChange={(e) => setDateTo(e.target.value)}
+            className="bg-zinc-900 border border-zinc-700 text-zinc-300 text-xs px-3 py-2 rounded-lg focus:outline-none focus:border-zinc-500 transition-colors"
+          />
+        </div>
+        {hasFilters && (
+          <button
+            onClick={() => { setTypeFilter(REPORT_TYPE_ALL); setDateFrom(""); setDateTo(""); }}
+            className="text-xs text-zinc-500 hover:text-zinc-300 transition-colors"
+          >
+            Clear filters
+          </button>
+        )}
+        <span className="ml-auto text-xs text-zinc-600">{filteredReports.length} report{filteredReports.length !== 1 ? "s" : ""}</span>
+      </div>
+
       {/* Report cards */}
       <div>
-        <h2 className="text-sm font-semibold text-zinc-300 mb-4">Available Reports</h2>
         <div className="grid grid-cols-3 gap-4">
-          {reports.map((r) => {
+          {filteredReports.map((r) => {
             const icons: Record<string, React.ReactNode> = {
               inventory: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="text-zinc-400"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>,
               products: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="text-zinc-400"><path d="M12 2L2 7v10c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V7l-10-5z"/></svg>,
@@ -216,42 +272,49 @@ export default function ReportsPage() {
       </div>
 
       {/* Recent activity */}
-      <section className="bg-zinc-900 rounded-xl border border-zinc-800">
-        <div className="px-6 py-4 border-b border-zinc-800">
+      <section className="bg-zinc-900 rounded-lg border border-zinc-800">
+        <div className="flex items-center justify-between px-5 py-3 border-b border-zinc-800">
           <h2 className="text-sm font-semibold text-zinc-100">Recent Report Activity</h2>
+          {filteredActivity.length !== RECENT_ACTIVITY.length && (
+            <span className="text-xs text-zinc-500">{filteredActivity.length} of {RECENT_ACTIVITY.length}</span>
+          )}
         </div>
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="text-left text-xs text-zinc-500 uppercase tracking-wider border-b border-zinc-800">
-              <th className="px-6 py-3 font-medium">Report</th>
-              <th className="px-6 py-3 font-medium">Generated</th>
-              <th className="px-6 py-3 font-medium">By</th>
-              <th className="px-6 py-3 font-medium">Size</th>
-              <th className="px-6 py-3 font-medium"></th>
-            </tr>
-          </thead>
-          <tbody>
-            {RECENT_ACTIVITY.map((a, i) => (
-              <tr key={i} className={`hover:bg-zinc-800/40 transition-colors ${i < RECENT_ACTIVITY.length - 1 ? "border-b border-zinc-800" : ""}`}>
-                <td className="px-6 py-3.5 text-xs font-medium text-zinc-200">{a.report}</td>
-                <td className="px-6 py-3.5 text-xs text-zinc-500 font-mono">{a.date}</td>
-                <td className="px-6 py-3.5 text-xs text-zinc-400">{a.user}</td>
-                <td className="px-6 py-3.5 text-xs text-zinc-500">{a.size}</td>
-                <td className="px-6 py-3.5">
-                  <button
-                    onClick={() => {
-                      const r = reports.find((rp) => rp.title === a.report || rp.title.startsWith(a.report));
-                      if (r) { downloadCSV(r.filename, r.headers, r.rows); showToast(`${r.title} re-exported.`); }
-                    }}
-                    className="text-xs text-blue-400 hover:text-blue-300 transition-colors"
-                  >
-                    Re-export
-                  </button>
-                </td>
+        {filteredActivity.length === 0 ? (
+          <div className="px-5 py-8 text-center text-xs text-zinc-600">No activity matches the current filters.</div>
+        ) : (
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="text-left text-xs text-zinc-600 uppercase tracking-wider border-b border-zinc-800">
+                <th className="px-5 py-2 font-medium">Report</th>
+                <th className="px-5 py-2 font-medium">Generated</th>
+                <th className="px-5 py-2 font-medium">By</th>
+                <th className="px-5 py-2 font-medium">Size</th>
+                <th className="px-5 py-2 font-medium"></th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {filteredActivity.map((a, i) => (
+                <tr key={i} className={`hover:bg-zinc-800/40 transition-colors ${i < filteredActivity.length - 1 ? "border-b border-zinc-800" : ""}`}>
+                  <td className="px-5 py-2.5 text-xs font-medium text-zinc-200">{a.report}</td>
+                  <td className="px-5 py-2.5 text-xs text-zinc-500 font-mono">{a.date}</td>
+                  <td className="px-5 py-2.5 text-xs text-zinc-400">{a.user}</td>
+                  <td className="px-5 py-2.5 text-xs text-zinc-500">{a.size}</td>
+                  <td className="px-5 py-2.5">
+                    <button
+                      onClick={() => {
+                        const r = reports.find((rp) => rp.title === a.report || rp.title.startsWith(a.report));
+                        if (r) { downloadCSV(r.filename, r.headers, r.rows); showToast(`${r.title} re-exported.`); }
+                      }}
+                      className="text-xs text-zinc-500 hover:text-zinc-300 transition-colors"
+                    >
+                      Re-export
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
       </section>
 
       {preview && <PreviewModal report={preview} onClose={() => setPreview(null)} />}
