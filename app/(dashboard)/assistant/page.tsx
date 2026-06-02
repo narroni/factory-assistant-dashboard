@@ -215,7 +215,6 @@ function ProposalCard({
         const err = await res.json();
         throw new Error(err.error || "Execution failed");
       }
-      // Re-fetch status to get executedAction details
       await fetchStatus();
     } catch (e) {
       setExecError(e instanceof Error ? e.message : "Execution failed");
@@ -224,23 +223,62 @@ function ProposalCard({
     }
   }
 
+  async function handleApprove() {
+    if (!requestId) return;
+    try {
+      const res = await fetch(`/api/ai-requests/${requestId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "approve" }),
+      });
+      if (!res.ok) throw new Error("Approval failed");
+      await fetchStatus();
+    } catch (e) {
+      console.error("Approval failed:", e);
+    }
+  }
+
+  async function handleReject() {
+    if (!requestId) return;
+    try {
+      const res = await fetch(`/api/ai-requests/${requestId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "reject" }),
+      });
+      if (!res.ok) throw new Error("Rejection failed");
+      await fetchStatus();
+    } catch (e) {
+      console.error("Rejection failed:", e);
+    }
+  }
+
+  function getStatusLabel(): string {
+    if (loading) return "…";
+    if (status === "PENDING") return isAdmin ? "Pending approval" : "Waiting for admin approval";
+    if (status === "APPROVED") return "Approved";
+    if (status === "REJECTED") return "Rejected";
+    if (status === "EXECUTED") return "Executed";
+    return status;
+  }
+
   const colors = STATUS_COLORS[status] ?? STATUS_COLORS.PENDING;
 
   return (
     <div className={`border ${colors.border} ${colors.bg} rounded-lg p-3 space-y-2 mt-2`}>
       {/* Header row */}
-      <div className="flex items-center justify-between gap-2">
+      <div className="flex items-center justify-between gap-2 flex-wrap">
         <span className="text-xs font-medium text-zinc-300">
           {ACTION_LABELS[proposal.actionType] ?? proposal.actionType}
         </span>
         {requestId && (
           <div className="flex items-center gap-2">
             <span className={`text-xs px-2 py-0.5 rounded font-medium ${colors.text}`}>
-              {loading ? "…" : status.charAt(0) + status.slice(1).toLowerCase()}
+              {getStatusLabel()}
             </span>
             <Link
               href={`/ai-requests?viewId=${requestId}`}
-              className="text-xs text-zinc-500 hover:text-zinc-300 transition-colors"
+              className="text-xs text-zinc-500 hover:text-zinc-300 transition-colors shrink-0"
               title="Open in AI Requests"
             >
               ↗
@@ -252,24 +290,42 @@ function ProposalCard({
       {/* Reasoning */}
       <p className="text-xs text-zinc-500 leading-relaxed">{proposal.reasoning}</p>
 
-      {/* Execute button — admin only, APPROVED state */}
-      {requestId && isAdmin && status === "APPROVED" && (
-        <div className="pt-1">
-          <button
-            onClick={handleExecute}
-            disabled={executing}
-            className="flex items-center gap-1.5 text-xs px-3 py-1.5 bg-zinc-700 hover:bg-zinc-600 disabled:opacity-50 text-zinc-100 rounded-lg transition-colors font-medium"
-          >
-            {executing ? (
-              <><span className="w-3 h-3 border border-zinc-300 border-t-transparent rounded-full animate-spin" /> Executing…</>
-            ) : (
-              <>
-                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polygon points="5 3 19 12 5 21 5 3"/></svg>
-                Execute
-              </>
-            )}
-          </button>
-          {execError && <p className="text-xs text-red-400 mt-1">{execError}</p>}
+      {/* Actions: Approve/Reject (admin, PENDING) or Execute (admin, APPROVED) */}
+      {requestId && isAdmin && (
+        <div className="pt-1 space-y-2">
+          {status === "PENDING" && (
+            <div className="flex gap-2 flex-wrap">
+              <button
+                onClick={handleApprove}
+                className="flex-1 min-w-24 text-xs px-3 py-1.5 bg-green-700 hover:bg-green-600 text-white rounded-lg transition-colors font-medium"
+              >
+                Approve
+              </button>
+              <button
+                onClick={handleReject}
+                className="flex-1 min-w-24 text-xs px-3 py-1.5 bg-red-700 hover:bg-red-600 text-white rounded-lg transition-colors font-medium"
+              >
+                Reject
+              </button>
+            </div>
+          )}
+          {status === "APPROVED" && (
+            <button
+              onClick={handleExecute}
+              disabled={executing}
+              className="w-full flex items-center justify-center gap-1.5 text-xs px-3 py-1.5 bg-zinc-700 hover:bg-zinc-600 disabled:opacity-50 text-zinc-100 rounded-lg transition-colors font-medium"
+            >
+              {executing ? (
+                <><span className="w-3 h-3 border border-zinc-300 border-t-transparent rounded-full animate-spin" /> Executing…</>
+              ) : (
+                <>
+                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+                  Execute
+                </>
+              )}
+            </button>
+          )}
+          {execError && <p className="text-xs text-red-400">{execError}</p>}
         </div>
       )}
 

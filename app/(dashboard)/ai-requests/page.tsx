@@ -132,7 +132,7 @@ export default function AIRequestsPage() {
   const totalPages = Math.ceil(total / PAGE_SIZE);
 
   return (
-    <div className="px-8 py-6 space-y-6">
+    <div className="px-4 sm:px-6 md:px-8 py-4 sm:py-6 space-y-4 sm:space-y-6">
       <div className="flex items-start justify-between">
         <div>
           <h1 className="text-xl font-semibold text-zinc-100">AI Action Requests</h1>
@@ -168,7 +168,8 @@ export default function AIRequestsPage() {
           </div>
         ) : (
           <>
-            <table className="w-full text-sm">
+            <div className="overflow-x-auto">
+            <table className="w-full text-sm min-w-max">
               <thead>
                 <tr className="text-left text-xs text-zinc-500 uppercase tracking-wider border-b border-zinc-800 bg-zinc-800/50">
                   <th className="px-5 py-3 font-medium">Action</th>
@@ -210,7 +211,7 @@ export default function AIRequestsPage() {
                                 "bg-emerald-400"
                               }`}
                             />
-                            {colors.label}
+                            {req.status === "PENDING" ? "Waiting for approval" : colors.label}
                           </span>
                         </td>
                         <td className="px-5 py-3.5 text-xs text-zinc-500">
@@ -307,6 +308,7 @@ export default function AIRequestsPage() {
                 })}
               </tbody>
             </table>
+            </div>
 
             {/* Pagination */}
             {totalPages > 1 && (

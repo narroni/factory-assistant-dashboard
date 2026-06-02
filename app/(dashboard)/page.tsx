@@ -31,10 +31,10 @@ export default async function OverviewPage() {
   ];
 
   return (
-    <div className="px-6 py-4 space-y-4">
+    <div className="px-4 sm:px-6 py-3 sm:py-4 space-y-4">
 
       {/* KPI Cards */}
-      <div className="grid grid-cols-4 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
         {kpiCards.map((card) => (
           <div key={card.title} className="bg-zinc-900 rounded-lg p-4 border border-zinc-800">
             <p className="text-xs text-zinc-500 font-medium uppercase tracking-wider mb-2">{card.title}</p>
