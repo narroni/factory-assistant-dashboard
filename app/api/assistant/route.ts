@@ -4,6 +4,8 @@ import { loadFactoryContext } from "../../lib/factory-context";
 import { runCopilot, checkOllamaHealth, type ConversationMessage, type ActionProposal } from "../../lib/ollama";
 import { prisma } from "../../lib/prisma";
 import { calculatePackaging, formatPackagingResultText } from "../../lib/packaging-calculator";
+import { normalizeActionType, isReadOnlyQuestion } from "../../lib/action-types";
+import { findRelevantChunks, formatRelevantChunks, chunkDocument } from "../../lib/knowledge-search";
 
 export type AssistantRequest = {
   question: string;
@@ -321,16 +323,47 @@ export async function POST(req: NextRequest) {
   // ── Load AI Config and Knowledge ────────────────────────────────────────────
   let config;
   let knowledgeText = "";
+  let rulesText = "";
   try {
     config = await prisma.aIConfig.findUnique({ where: { id: "singleton" } });
-    const knowledge = await prisma.factoryKnowledge.findMany({
+
+    // Load active rules
+    const rules = await prisma.aIRule.findMany({
       where: { enabled: true },
-      orderBy: { createdAt: "asc" },
-      take: 5,
+      orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }],
     });
-    knowledgeText = knowledge.map((k) => `[${k.filename}]\n${k.content}`).join("\n\n");
+    if (rules.length > 0) {
+      rulesText = [
+        "ADMIN RULES (must follow):",
+        ...rules.map((r, i) => `${i + 1}. ${r.text}`),
+      ].join("\n");
+    }
+
+    // Load relevant knowledge chunks (RAG)
+    const knowledgeFiles = await prisma.factoryKnowledge.findMany({
+      where: { enabled: true },
+      include: { chunks: { select: { content: true, chunkIndex: true } } },
+    });
+
+    // Collect all chunks and search for relevance
+    const allChunks: { content: string; filename: string; chunkIndex: number }[] = [];
+    for (const file of knowledgeFiles) {
+      for (const chunk of file.chunks) {
+        allChunks.push({ content: chunk.content, filename: file.filename, chunkIndex: chunk.chunkIndex });
+      }
+    }
+
+    if (allChunks.length > 0) {
+      const relevantChunks = findRelevantChunks(
+        allChunks.map((c) => c.content),
+        allChunks.map((c) => ({ sourceFile: c.filename, chunkIndex: c.chunkIndex })),
+        question,
+        5, // top-5 chunks
+      );
+      knowledgeText = formatRelevantChunks(relevantChunks);
+    }
   } catch (err) {
-    // Silently fail; config is optional
+    console.warn("[assistant] rules/knowledge load failed:", err);
   }
 
   // ── Packaging calculator context ───────────────────────────────────────────
@@ -348,6 +381,15 @@ export async function POST(req: NextRequest) {
   }
 
   // ── Call Ollama ────────────────────────────────────────────────────────────
+  // Inject rules into custom system prompt
+  const systemPromptWithRules = config?.systemPrompt
+    ? rulesText
+      ? `${rulesText}\n\n${config.systemPrompt}`
+      : config.systemPrompt
+    : rulesText
+      ? rulesText
+      : undefined;
+
   const result = await runCopilot({
     question,
     history,
@@ -357,16 +399,38 @@ export async function POST(req: NextRequest) {
     config: config
       ? {
           assistantName: config.assistantName,
-          systemPrompt: config.systemPrompt,
+          systemPrompt: systemPromptWithRules,
           responseStyle: config.responseStyle,
           allowedActions: (config.allowedActions as string[]) ?? [],
         }
-      : undefined,
+      : systemPromptWithRules
+        ? { systemPrompt: systemPromptWithRules }
+        : undefined,
     knowledge: knowledgeText || undefined,
   });
 
   const answer = result.ok ? result.answer : result.fallback;
-  const proposals: ActionProposal[] = result.ok ? result.proposals : [];
+  let proposals: ActionProposal[] = result.ok ? result.proposals : [];
+
+  // ── Gate: read-only/calculation questions must never create proposals ──────
+  if (isReadOnlyQuestion(question)) {
+    if (proposals.length > 0) {
+      console.info(`[assistant] stripping ${proposals.length} proposal(s) — read-only question`);
+    }
+    proposals = [];
+  }
+
+  // ── Normalize and validate action types ───────────────────────────────────
+  const validatedProposals: ActionProposal[] = [];
+  for (const p of proposals) {
+    const normalized = normalizeActionType(p.actionType);
+    if (!normalized) {
+      console.warn(`[assistant] dropping proposal with unknown actionType: "${p.actionType}"`);
+      continue;
+    }
+    validatedProposals.push({ ...p, actionType: normalized });
+  }
+  proposals = validatedProposals;
 
   // ── Persist action proposals ───────────────────────────────────────────────
   let savedRequestIds: string[] = [];

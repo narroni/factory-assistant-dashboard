@@ -5,6 +5,7 @@ import { getCurrentUser } from "../../../lib/auth-helpers";
 import { getAuditLogs } from "../../../lib/audit";
 import { useRouter } from "next/navigation";
 import type { UserRole } from "@prisma/client";
+import AccessDenied from "../../../components/AccessDenied";
 
 type AuditLog = {
   id: string;
@@ -32,6 +33,7 @@ export default function AuditLogsPage() {
   const [actionFilter, setActionFilter] = useState("");
   const [selectedLog, setSelectedLog] = useState<AuditLog | null>(null);
   const [showModal, setShowModal] = useState(false);
+  const [authState, setAuthState] = useState<"checking" | "ok" | "denied">("checking");
   const router = useRouter();
 
   const pageSize = 20;
@@ -41,17 +43,19 @@ export default function AuditLogsPage() {
     (async () => {
       try {
         const user = await getCurrentUser();
-        if (!user || user.role !== "ADMIN") {
-          router.push("/");
-          return;
-        }
+        if (!user) { router.replace("/login"); return; }
+        if (user.role !== "ADMIN") { setAuthState("denied"); setLoading(false); return; }
         setUserRole(user.role);
+        setAuthState("ok");
         fetchLogs(1);
       } finally {
         setLoading(false);
       }
     })();
   }, [router]);
+
+  if (authState === "checking") return null;
+  if (authState === "denied") return <AccessDenied />;
 
   async function fetchLogs(pageNum: number) {
     const { logs: newLogs, total: newTotal } = await getAuditLogs({

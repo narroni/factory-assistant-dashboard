@@ -3,6 +3,7 @@
 import { Fragment, useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { getCurrentUser } from "../../lib/auth-helpers";
+import AccessDenied from "../../components/AccessDenied";
 
 type ActionRequest = {
   id: string;
@@ -48,6 +49,7 @@ export default function AIRequestsPage() {
   const [loading, setLoading] = useState(true);
   const [expanded, setExpanded] = useState<string | null>(null);
   const [approving, setApproving] = useState<string | null>(null);
+  const [authState, setAuthState] = useState<"checking" | "admin" | "denied" | "unauth">("checking");
   const router = useRouter();
 
   const loadRequests = useCallback(async () => {
@@ -67,10 +69,14 @@ export default function AIRequestsPage() {
   useEffect(() => {
     getCurrentUser().then((u) => {
       if (!u) { router.replace("/login"); return; }
-      if (u.role !== "ADMIN") { router.replace("/"); return; }
+      if (u.role !== "ADMIN") { setAuthState("denied"); return; }
+      setAuthState("admin");
       loadRequests();
     });
   }, [router, loadRequests]);
+
+  if (authState === "checking") return null;
+  if (authState === "denied") return <AccessDenied />;
 
   async function approve(id: string) {
     setApproving(id);

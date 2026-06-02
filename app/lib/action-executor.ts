@@ -1,5 +1,6 @@
 import { prisma } from "./prisma";
 import * as XLSX from "xlsx";
+import { normalizeActionType } from "./action-types";
 
 export type ActionExecutionRequest = {
   requestId: string;
@@ -17,33 +18,33 @@ export type ExecutionResult = {
   error?: string;
 };
 
-const SUPPORTED_ACTIONS = [
-  "GENERATE_REPORT",
-  "CREATE_PURCHASE_ORDER",
-  "CREATE_PRODUCTION_PLAN",
-  "INVENTORY_RECOMMENDATION",
-];
-
 export async function executeAction(req: ActionExecutionRequest): Promise<ExecutionResult> {
-  if (!SUPPORTED_ACTIONS.includes(req.actionType)) {
-    return { success: false, error: `Unsupported action type: ${req.actionType}` };
+  // Normalize the action type before execution (handles lowercase/alias from LLM)
+  const normalized = normalizeActionType(req.actionType);
+  if (!normalized) {
+    const supported = ["GENERATE_REPORT", "GENERATE_XLSX", "GENERATE_CSV", "GENERATE_PDF", "CREATE_PURCHASE_ORDER", "CREATE_PRODUCTION_PLAN", "INVENTORY_RECOMMENDATION"];
+    return { success: false, error: `Unsupported action type: "${req.actionType}". Supported: ${supported.join(", ")}` };
   }
+  const normalizedReq = { ...req, actionType: normalized };
 
   try {
-    switch (req.actionType) {
+    switch (normalized) {
       case "GENERATE_REPORT":
-        return await generateReport(req);
+      case "GENERATE_XLSX":
+      case "GENERATE_CSV":
+      case "GENERATE_PDF":
+        return await generateReport(normalizedReq);
       case "CREATE_PURCHASE_ORDER":
-        return await createPurchaseOrder(req);
+        return await createPurchaseOrder(normalizedReq);
       case "CREATE_PRODUCTION_PLAN":
-        return await createProductionPlan(req);
+        return await createProductionPlan(normalizedReq);
       case "INVENTORY_RECOMMENDATION":
-        return await inventoryRecommendation(req);
+        return await inventoryRecommendation(normalizedReq);
       default:
         return { success: false, error: "Unknown action type" };
     }
   } catch (err) {
-    console.error(`[executor] ${req.actionType} failed:`, err);
+    console.error(`[executor] ${normalized} failed:`, err);
     return { success: false, error: String(err) };
   }
 }

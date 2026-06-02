@@ -3,6 +3,7 @@
 import { Fragment, useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { getCurrentUser } from "../../lib/auth-helpers";
+import AccessDenied from "../../components/AccessDenied";
 
 type ChatSummary = {
   id: string;
@@ -38,6 +39,7 @@ export default function AIHistoryPage() {
   const [detail, setDetail] = useState<ChatDetail | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
   const [userFilter, setUserFilter] = useState("");
+  const [authState, setAuthState] = useState<"checking" | "ok" | "denied">("checking");
   const router = useRouter();
 
   const loadChats = useCallback(async () => {
@@ -57,10 +59,14 @@ export default function AIHistoryPage() {
   useEffect(() => {
     getCurrentUser().then((u) => {
       if (!u) { router.replace("/login"); return; }
-      if (u.role !== "ADMIN") { router.replace("/"); return; }
+      if (u.role !== "ADMIN") { setAuthState("denied"); return; }
+      setAuthState("ok");
       loadChats();
     });
   }, [router, loadChats]);
+
+  if (authState === "checking") return null;
+  if (authState === "denied") return <AccessDenied />;
 
   async function openChat(id: string) {
     if (expanded === id) { setExpanded(null); setDetail(null); return; }

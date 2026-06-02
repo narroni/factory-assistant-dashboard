@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { getCurrentUser } from "../../../lib/auth-helpers";
+import AccessDenied from "../../../components/AccessDenied";
 
 type AIConfig = {
   id: string;
@@ -27,15 +28,20 @@ export default function AIConfigPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
+  const [authState, setAuthState] = useState<"checking" | "ok" | "denied">("checking");
   const router = useRouter();
 
   useEffect(() => {
     getCurrentUser().then((u) => {
       if (!u) { router.replace("/login"); return; }
-      if (u.role !== "ADMIN") { router.replace("/"); return; }
+      if (u.role !== "ADMIN") { setAuthState("denied"); return; }
+      setAuthState("ok");
       loadConfig();
     });
   }, [router]);
+
+  if (authState === "checking") return null;
+  if (authState === "denied") return <AccessDenied />;
 
   async function loadConfig() {
     try {

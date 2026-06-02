@@ -78,6 +78,7 @@ model User {
   aiInteractionLogs   AIInteractionLog[]
   assistantChats      AssistantChat[]
   factoryKnowledge    FactoryKnowledge[]
+  aiRules             AIRule[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -398,6 +399,7 @@ model FactoryKnowledge {
   uploadedBy  String
 
   user        User     @relation(fields: [uploadedBy], references: [id], onDelete: Cascade)
+  chunks      KnowledgeChunk[]
 
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
@@ -557,4 +559,56 @@ model OrderLine {
   @@index([orderId])
   @@index([bladeProductId])
   @@map("order_lines")
+}
+
+// ── AI Rules ──────────────────────────────────────────────────────────────────
+
+model AIRule {
+  id        String  @id @default(cuid())
+  text      String  @db.Text
+  enabled   Boolean @default(true)
+  sortOrder Int     @default(0)
+  createdBy String
+
+  user User @relation(fields: [createdBy], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([enabled])
+  @@index([createdBy])
+  @@map("ai_rules")
+}
+
+// ── Knowledge Chunks (RAG foundation) ─────────────────────────────────────────
+
+model KnowledgeChunk {
+  id          String @id @default(cuid())
+  knowledgeId String
+  chunkIndex  Int
+  content     String @db.Text
+  tokenCount  Int?
+
+  knowledge  FactoryKnowledge    @relation(fields: [knowledgeId], references: [id], onDelete: Cascade)
+  embedding  KnowledgeEmbedding?
+
+  createdAt DateTime @default(now())
+
+  @@index([knowledgeId])
+  @@map("knowledge_chunks")
+}
+
+// ── Knowledge Embeddings placeholder (future vector search) ───────────────────
+
+model KnowledgeEmbedding {
+  id      String @id @default(cuid())
+  chunkId String @unique
+  model   String @default("none")
+  vector  Json   @default("[]")
+
+  chunk KnowledgeChunk @relation(fields: [chunkId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@map("knowledge_embeddings")
 }

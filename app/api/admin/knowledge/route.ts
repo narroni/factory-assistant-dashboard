@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSessionUser } from "../../../lib/session";
 import { prisma } from "../../../lib/prisma";
 import { parseXLSX, type XLSXParseResult } from "../../../lib/xlsx-parser";
+import { chunkDocument } from "../../../lib/knowledge-search";
 
 // GET /api/admin/knowledge — list all knowledge files
 export async function GET(req: NextRequest) {
@@ -59,16 +60,31 @@ export async function POST(req: NextRequest) {
       metadata = { ...metadata, parseStatus: "pending" };
     }
 
+    // Create knowledge file record
     const knowledge = await prisma.factoryKnowledge.create({
       data: {
         filename: file.name,
         fileType,
         fileSize: file.size,
-        content: content.slice(0, 50000), // Limit to 50k chars
+        content: content.slice(0, 50000), // Limit to 50k chars for summary
         uploadedBy: user.id,
         metadata: metadata as unknown as import("@prisma/client").Prisma.InputJsonValue,
       },
     });
+
+    // Chunk the document and save chunks for RAG search
+    const { chunks } = chunkDocument(content, file.name);
+    await Promise.all(
+      chunks.map((chunkContent, idx) =>
+        prisma.knowledgeChunk.create({
+          data: {
+            knowledgeId: knowledge.id,
+            chunkIndex: idx,
+            content: chunkContent,
+          },
+        }),
+      ),
+    );
 
     return NextResponse.json(knowledge, { status: 201 });
   } catch (err) {

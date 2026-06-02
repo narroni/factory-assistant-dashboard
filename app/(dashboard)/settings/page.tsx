@@ -443,6 +443,28 @@ export default function SettingsPage() {
                   </div>
                 </div>
               </Link>
+              <Link href="/settings/ai-rules">
+                <div className="bg-zinc-900 rounded-lg border border-zinc-800 p-4 hover:border-zinc-700 transition-colors cursor-pointer h-full">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h3 className="text-sm font-semibold text-zinc-100">AI Rules</h3>
+                      <p className="text-xs text-zinc-500 mt-0.5">Constraints and guidelines for AI behavior.</p>
+                    </div>
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-zinc-500 shrink-0"><path d="M9 18l6-6-6-6"/></svg>
+                  </div>
+                </div>
+              </Link>
+              <Link href="/settings/ai-context">
+                <div className="bg-zinc-900 rounded-lg border border-zinc-800 p-4 hover:border-zinc-700 transition-colors cursor-pointer h-full">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h3 className="text-sm font-semibold text-zinc-100">AI Context Viewer</h3>
+                      <p className="text-xs text-zinc-500 mt-0.5">Preview rules and knowledge sent to AI.</p>
+                    </div>
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-zinc-500 shrink-0"><path d="M9 18l6-6-6-6"/></svg>
+                  </div>
+                </div>
+              </Link>
             </div>
           )}
         </div>

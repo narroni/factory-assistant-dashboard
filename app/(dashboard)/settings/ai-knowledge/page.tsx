@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { getCurrentUser } from "../../../lib/auth-helpers";
+import AccessDenied from "../../../components/AccessDenied";
 
 type KnowledgeFile = {
   id: string;
@@ -23,16 +24,21 @@ export default function AIKnowledgePage() {
   const [uploading, setUploading] = useState(false);
   const [message, setMessage] = useState("");
   const [previewId, setPreviewId] = useState<string | null>(null);
+  const [authState, setAuthState] = useState<"checking" | "ok" | "denied">("checking");
   const fileInputRef = useRef<HTMLInputElement>(null);
   const router = useRouter();
 
   useEffect(() => {
     getCurrentUser().then((u) => {
       if (!u) { router.replace("/login"); return; }
-      if (u.role !== "ADMIN") { router.replace("/"); return; }
+      if (u.role !== "ADMIN") { setAuthState("denied"); return; }
+      setAuthState("ok");
       loadFiles();
     });
   }, [router]);
+
+  if (authState === "checking") return null;
+  if (authState === "denied") return <AccessDenied />;
 
   async function loadFiles() {
     try {

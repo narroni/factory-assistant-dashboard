@@ -17,6 +17,8 @@ export const dictionaries: Record<Language, Record<string, string>> = {
     "nav.ai_group": "Assistant",
     "nav.ai_config": "AI Configuration",
     "nav.ai_knowledge": "Knowledge Base",
+    "nav.ai_rules": "AI Rules",
+    "nav.ai_context": "AI Context",
     "nav.outputs": "Outputs",
     "nav.packaging_calculator": "Packaging Calc.",
     "nav.customers": "Customers",
@@ -36,6 +38,8 @@ export const dictionaries: Record<Language, Record<string, string>> = {
     "page.outputs": "Generated Outputs",
     "page.packaging_calculator": "Packaging Calculator",
     "page.customers": "Customers",
+    "page.ai_rules": "AI Rules",
+    "page.ai_context": "AI Context Viewer",
 
     // Page subtitles
     "subtitle.overview": "Factory operations at a glance",
@@ -133,6 +137,8 @@ export const dictionaries: Record<Language, Record<string, string>> = {
     "nav.ai_group": "Assistent",
     "nav.ai_config": "KI-Konfiguration",
     "nav.ai_knowledge": "Wissensdatenbank",
+    "nav.ai_rules": "KI-Regeln",
+    "nav.ai_context": "KI-Kontext",
     "nav.outputs": "Ausgaben",
     "nav.packaging_calculator": "Verpackungskalk.",
     "nav.customers": "Kunden",
@@ -152,6 +158,8 @@ export const dictionaries: Record<Language, Record<string, string>> = {
     "page.outputs": "Generierte Ausgaben",
     "page.packaging_calculator": "Verpackungsrechner",
     "page.customers": "Kunden",
+    "page.ai_rules": "KI-Regeln",
+    "page.ai_context": "KI-Kontext-Viewer",
 
     // Page subtitles
     "subtitle.overview": "Fabrikbetrieb auf einen Blick",
