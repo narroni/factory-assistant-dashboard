@@ -126,9 +126,12 @@ export async function loadFactoryContext(): Promise<FactoryContext> {
     prisma.material.groupBy({ by: ["category"], _count: { id: true }, _sum: { quantity: true } }),
     // Order status counts
     prisma.order.groupBy({ by: ["status"], _count: { id: true } }),
-    // Open orders with lines
+    // Open orders with lines (exclude demo orders without customerId)
     prisma.order.findMany({
-      where: { status: { in: ["PENDING", "IN_PRODUCTION", "DELAYED"] } },
+      where: {
+        status: { in: ["PENDING", "IN_PRODUCTION", "DELAYED"] },
+        customerId: { not: null }
+      },
       select: {
         orderNumber: true, customer: true, productName: true,
         qty: true, status: true, dueDate: true, valueEur: true,

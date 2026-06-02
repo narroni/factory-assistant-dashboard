@@ -67,6 +67,7 @@ async function generateReport(req: ActionExecutionRequest): Promise<ExecutionRes
   } else if (reportType === "orders") {
     const orders = await prisma.order.findMany({
       where: {
+        customerId: { not: null },
         createdAt: { gte: new Date(startDate), lte: new Date(endDate) },
       },
       select: { orderNumber: true, customer: true, productName: true, qty: true, status: true, dueDate: true, valueEur: true },

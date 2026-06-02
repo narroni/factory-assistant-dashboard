@@ -4,6 +4,7 @@ import { usePathname } from "next/navigation";
 import { useState, useEffect, useRef } from "react";
 import { useLanguage } from "../contexts/LanguageContext";
 import { t } from "../lib/i18n";
+import MobileNav from "./MobileNav";
 
 const pageKeys: Record<string, string> = {
   "/":           "overview",
@@ -79,10 +80,13 @@ export default function TopHeader() {
   const hasAlerts = alerts.length > 0;
 
   return (
-    <header className="flex items-center justify-between px-6 py-3 border-b border-zinc-800 bg-zinc-950 shrink-0">
-      <div>
-        <h1 className="text-base font-semibold text-zinc-100 leading-tight">{title}</h1>
-        <p className="text-xs text-zinc-500 mt-0.5">{subtitle}</p>
+    <header className="flex items-center justify-between px-4 sm:px-6 md:px-8 py-2.5 sm:py-3 border-b border-zinc-800 bg-zinc-950 shrink-0">
+      <div className="flex items-center gap-3 flex-1 min-w-0">
+        <MobileNav />
+        <div className="min-w-0">
+          <h1 className="text-base font-semibold text-zinc-100 leading-tight truncate">{title}</h1>
+          <p className="text-xs text-zinc-500 mt-0.5">{subtitle}</p>
+        </div>
       </div>
       <div className="flex items-center gap-3">
         <div className="relative" ref={dropdownRef}>

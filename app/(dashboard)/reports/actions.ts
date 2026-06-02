@@ -115,6 +115,7 @@ export async function getProductsReport(): Promise<Report> {
 export async function getOrdersReport(): Promise<Report> {
   try {
     const orders = await prisma.order.findMany({
+      where: { customerId: { not: null } },
       orderBy: { createdAt: "asc" },
     });
 

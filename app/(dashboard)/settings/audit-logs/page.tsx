@@ -101,7 +101,7 @@ export default function AuditLogsPage() {
       {/* Filters */}
       <div className="bg-zinc-900 rounded-xl border border-zinc-800 p-6 space-y-4">
         <h2 className="text-sm font-semibold text-zinc-100">Filters</h2>
-        <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
+        <div className="grid grid-cols-2 gap-4 md:grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
           <div>
             <label className="block text-xs font-medium text-zinc-400 mb-2">Entity</label>
             <select

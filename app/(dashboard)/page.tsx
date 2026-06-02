@@ -46,9 +46,9 @@ export default async function OverviewPage() {
 
       {/* Middle row: orders table + low stock */}
       {data.recentOrders.length > 0 && (
-        <div className="grid grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
           {/* Recent Orders */}
-          <section className="col-span-2 bg-zinc-900 rounded-lg border border-zinc-800">
+          <section className="lg:col-span-2 bg-zinc-900 rounded-lg border border-zinc-800">
             <div className="flex items-center justify-between px-5 py-3 border-b border-zinc-800">
               <h2 className="text-sm font-semibold text-zinc-100">Recent Orders</h2>
               <Link href="/orders" className="text-xs text-zinc-500 hover:text-zinc-300 transition-colors">View all →</Link>
@@ -117,7 +117,7 @@ export default async function OverviewPage() {
               <h2 className="text-sm font-semibold text-zinc-100">Assistant Action Requests</h2>
               <span className="text-xs text-zinc-600">View all →</span>
             </div>
-            <div className="grid grid-cols-4 divide-x divide-zinc-800">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 divide-y sm:divide-y-0 sm:divide-x divide-zinc-800">
               {[
                 { label: "Pending Approval", value: data.aiRequests.pending, accent: data.aiRequests.pending > 0 ? "text-amber-400" : "text-zinc-500" },
                 { label: "Approved Today",   value: data.aiRequests.approvedToday,  accent: "text-blue-400" },

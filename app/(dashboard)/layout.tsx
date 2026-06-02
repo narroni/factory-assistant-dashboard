@@ -10,7 +10,9 @@ export default function DashboardLayout({ children }: Readonly<{ children: React
   return (
     <div className="h-full flex">
       <LayoutMountProbe />
-      <Sidebar />
+      <div className="hidden lg:flex">
+        <Sidebar />
+      </div>
       <div className="flex flex-col flex-1 min-w-0 h-full">
         <TopHeader />
         <main className="flex-1 overflow-auto">{children}</main>

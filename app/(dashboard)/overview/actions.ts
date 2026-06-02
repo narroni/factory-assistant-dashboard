@@ -23,6 +23,7 @@ export async function getOverviewData() {
         where: { status: { not: "COMPLETED" } },
       }),
       prisma.order.findMany({
+        where: { customerId: { not: null } },
         orderBy: { createdAt: "desc" },
         take: 10,
       }),
