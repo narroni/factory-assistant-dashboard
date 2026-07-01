@@ -25,7 +25,7 @@ export async function loginUser(email: string, password: string) {
 
     const isPasswordValid = await verifyPassword(password, user.passwordHash);
     if (!isPasswordValid) {
-      return { error: "Invalid email or password" };
+      return { error: "Incorrect password, try again" };
     }
 
     if (user.status === "INACTIVE") {

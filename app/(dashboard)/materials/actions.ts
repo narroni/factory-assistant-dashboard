@@ -52,10 +52,13 @@ export async function getMaterials(): Promise<Material[]> {
   }
 }
 
-export async function addMaterial(data: Omit<Material, "id">): Promise<Material> {
+export async function addMaterial(data: Omit<Material, "id">): Promise<Material | { error: string }> {
   try {
     await requireAdmin();
-
+  } catch (error) {
+    return { error: error instanceof Error ? error.message : "Permission denied" };
+  }
+  try {
     const dbMaterial = await prisma.material.create({
       data: {
         name: data.name,
@@ -95,10 +98,13 @@ export async function addMaterial(data: Omit<Material, "id">): Promise<Material>
 export async function updateMaterial(
   id: string,
   data: Omit<Material, "id">
-): Promise<Material> {
+): Promise<Material | { error: string }> {
   try {
     await requireAdmin();
-
+  } catch (error) {
+    return { error: error instanceof Error ? error.message : "Permission denied" };
+  }
+  try {
     const before = await prisma.material.findUnique({ where: { id } });
 
     const dbMaterial = await prisma.material.update({
@@ -149,10 +155,13 @@ export async function updateMaterial(
   }
 }
 
-export async function deleteMaterial(id: string): Promise<void> {
+export async function deleteMaterial(id: string): Promise<{ error: string } | void> {
   try {
     await requireAdmin();
-
+  } catch (error) {
+    return { error: error instanceof Error ? error.message : "Permission denied" };
+  }
+  try {
     const before = await prisma.material.findUnique({ where: { id } });
 
     await prisma.material.delete({
@@ -178,10 +187,13 @@ export async function deleteMaterial(id: string): Promise<void> {
 export async function changeMaterialStatus(
   id: string,
   status: MaterialStatus
-): Promise<Material> {
+): Promise<Material | { error: string }> {
   try {
     await requireCanChangeStatus("material");
-
+  } catch (error) {
+    return { error: error instanceof Error ? error.message : "Permission denied" };
+  }
+  try {
     const before = await prisma.material.findUnique({ where: { id } });
 
     const dbMaterial = await prisma.material.update({

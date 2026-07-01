@@ -588,6 +588,11 @@ export default function AssistantPage() {
   // Load user + chats, then restore last active chat
   useEffect(() => {
     (async () => {
+      // Reset any state from a previous user before loading this user's data.
+      setMessages([]);
+      setChats([]);
+      setActiveChatId(null);
+
       const u = await getCurrentUser();
       if (!u) { router.replace("/login"); return; }
       userIdRef.current = u.id;

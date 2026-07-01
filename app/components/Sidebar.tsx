@@ -73,10 +73,10 @@ const ordersNav = [
 ];
 
 const aiNav = [
-  { key: "assistant",   href: "/assistant",   Icon: SparkleIcon },
-  { key: "ai_requests", href: "/ai-requests", Icon: InboxIcon },
-  { key: "ai_history",  href: "/ai-history",  Icon: HistoryIcon },
-  { key: "outputs",     href: "/outputs",     Icon: DownloadIcon },
+  { key: "assistant",   href: "/assistant",   Icon: SparkleIcon,  adminOnly: false },
+  { key: "ai_requests", href: "/ai-requests", Icon: InboxIcon,    adminOnly: true },
+  { key: "ai_history",  href: "/ai-history",  Icon: HistoryIcon,  adminOnly: true },
+  { key: "outputs",     href: "/outputs",     Icon: DownloadIcon, adminOnly: false },
 ];
 
 // ── NavLink ────────────────────────────────────────────────────────────────────
@@ -154,6 +154,7 @@ export default function Sidebar() {
   const [userName, setUserName] = useState("User");
   const [userInitials, setUserInitials] = useState("U");
   const [userRole, setUserRole] = useState("Worker");
+  const [role, setRole] = useState("");
 
   useEffect(() => {
     fetch("/api/auth/me")
@@ -163,16 +164,23 @@ export default function Sidebar() {
           setUserName(d.name);
           setUserInitials(d.name.split(" ").map((p: string) => p[0]).join("").slice(0, 2).toUpperCase());
         }
-        if (d?.role) setUserRole(d.role.charAt(0) + d.role.slice(1).toLowerCase());
+        if (d?.role) {
+          setUserRole(d.role.charAt(0) + d.role.slice(1).toLowerCase());
+          setRole(d.role);
+        }
       })
       .catch(() => {});
   }, []);
+
+  const visibleAiNav = aiNav.filter((n) => !n.adminOnly || role === "ADMIN");
 
   async function handleSignOut() {
     try {
       await fetch("/api/auth/logout", { method: "POST" });
     } catch {}
-    router.push("/login");
+    // Hard reload to guarantee no client-side state (chat messages, user info, etc.)
+    // survives into the next session.
+    window.location.href = "/login";
   }
 
   function isActive(href: string) {
@@ -180,7 +188,7 @@ export default function Sidebar() {
     return pathname === href || pathname.startsWith(href + "/");
   }
 
-  const aiActive = aiNav.some((n) => isActive(n.href));
+  const aiActive = visibleAiNav.some((n) => isActive(n.href));
   const ordersActive = ordersNav.some((n) => isActive(n.href));
 
   return (
@@ -274,7 +282,7 @@ export default function Sidebar() {
         {/* Assistant section */}
         <div className="mt-2">
           {collapsed ? (
-            aiNav.map(({ key, href, Icon }) => (
+            visibleAiNav.map(({ key, href, Icon }) => (
               <NavLink
                 key={key}
                 href={href}
@@ -299,7 +307,7 @@ export default function Sidebar() {
               </button>
               {aiOpen && (
                 <div className="ml-3 pl-3 border-l border-zinc-800 flex flex-col gap-0.5 mt-0.5">
-                  {aiNav.map(({ key, href, Icon }) => (
+                  {visibleAiNav.map(({ key, href, Icon }) => (
                     <NavLink
                       key={key}
                       href={href}

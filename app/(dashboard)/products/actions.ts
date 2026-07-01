@@ -65,8 +65,12 @@ export async function getCrateTypes() {
   return prisma.crateType.findMany({ orderBy: { code: "asc" } });
 }
 
-export async function addBladeProduct(data: BladeProductFormData): Promise<BladeProduct> {
-  await requireAdmin();
+export async function addBladeProduct(data: BladeProductFormData): Promise<BladeProduct | { error: string }> {
+  try {
+    await requireAdmin();
+  } catch (error) {
+    return { error: error instanceof Error ? error.message : "Permission denied" };
+  }
   const row = await prisma.bladeProductSpec.create({
     data: {
       articleCode: data.articleCode,
@@ -91,8 +95,12 @@ export async function addBladeProduct(data: BladeProductFormData): Promise<Blade
   return mapRow(row);
 }
 
-export async function updateBladeProduct(id: string, data: BladeProductFormData): Promise<BladeProduct> {
-  await requireAdmin();
+export async function updateBladeProduct(id: string, data: BladeProductFormData): Promise<BladeProduct | { error: string }> {
+  try {
+    await requireAdmin();
+  } catch (error) {
+    return { error: error instanceof Error ? error.message : "Permission denied" };
+  }
   const before = await prisma.bladeProductSpec.findUnique({ where: { id } });
   const row = await prisma.bladeProductSpec.update({
     where: { id },
@@ -124,8 +132,12 @@ export async function updateBladeProduct(id: string, data: BladeProductFormData)
   return mapRow(row);
 }
 
-export async function deleteBladeProduct(id: string): Promise<void> {
-  await requireAdmin();
+export async function deleteBladeProduct(id: string): Promise<{ error: string } | void> {
+  try {
+    await requireAdmin();
+  } catch (error) {
+    return { error: error instanceof Error ? error.message : "Permission denied" };
+  }
   const before = await prisma.bladeProductSpec.findUnique({ where: { id } });
   await prisma.bladeProductSpec.delete({ where: { id } });
   if (before) await logAuditEvent("BladeProduct", id, "DELETE", { articleCode: before.articleCode });

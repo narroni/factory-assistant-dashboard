@@ -80,10 +80,13 @@ export async function getSuppliers(): Promise<Supplier[]> {
   }
 }
 
-export async function addSupplier(data: Omit<Supplier, "id">): Promise<Supplier> {
+export async function addSupplier(data: Omit<Supplier, "id">): Promise<Supplier | { error: string }> {
   try {
     await requireAdmin();
-
+  } catch (error) {
+    return { error: error instanceof Error ? error.message : "Permission denied" };
+  }
+  try {
     // Create supplier
     const dbSupplier = await prisma.supplier.create({
       data: {
@@ -157,10 +160,13 @@ export async function addSupplier(data: Omit<Supplier, "id">): Promise<Supplier>
 export async function updateSupplier(
   id: string,
   data: Omit<Supplier, "id">
-): Promise<Supplier> {
+): Promise<Supplier | { error: string }> {
   try {
     await requireAdmin();
-
+  } catch (error) {
+    return { error: error instanceof Error ? error.message : "Permission denied" };
+  }
+  try {
     const before = await prisma.supplier.findUnique({ where: { id } });
 
     // Update supplier fields
@@ -246,10 +252,13 @@ export async function updateSupplier(
   }
 }
 
-export async function deleteSupplier(id: string): Promise<void> {
+export async function deleteSupplier(id: string): Promise<{ error: string } | void> {
   try {
     await requireAdmin();
-
+  } catch (error) {
+    return { error: error instanceof Error ? error.message : "Permission denied" };
+  }
+  try {
     const before = await prisma.supplier.findUnique({ where: { id } });
 
     await prisma.supplier.delete({
@@ -274,10 +283,13 @@ export async function deleteSupplier(id: string): Promise<void> {
 export async function changeSupplierStatus(
   id: string,
   status: SupplierStatus
-): Promise<Supplier> {
+): Promise<Supplier | { error: string }> {
   try {
     await requireAdmin();
-
+  } catch (error) {
+    return { error: error instanceof Error ? error.message : "Permission denied" };
+  }
+  try {
     const before = await prisma.supplier.findUnique({ where: { id } });
 
     const dbSupplier = await prisma.supplier.update({

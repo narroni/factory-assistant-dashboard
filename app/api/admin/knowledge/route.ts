@@ -1,8 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
+import pdfParse from "pdf-parse";
 import { getSessionUser } from "../../../lib/session";
 import { prisma } from "../../../lib/prisma";
 import { parseXLSX, type XLSXParseResult } from "../../../lib/xlsx-parser";
 import { chunkDocument } from "../../../lib/knowledge-search";
+
+const NO_TEXT_FOUND = "[PDF appears to be scanned/image-based - no extractable text found]";
 
 // GET /api/admin/knowledge — list all knowledge files
 export async function GET() {
@@ -56,8 +59,24 @@ export async function POST(req: NextRequest) {
         parseStatus: "success",
       };
     } else if (fileType === "pdf") {
-      content = `[PDF file: ${file.name}]\nSize: ${Math.round(file.size / 1024)} KB\nPDF text extraction available in future updates.`;
-      metadata = { ...metadata, parseStatus: "pending" };
+      try {
+        const result = await pdfParse(buffer);
+        const text = result.text.trim();
+        if (text.length === 0) {
+          content = NO_TEXT_FOUND;
+          metadata = { ...metadata, parseStatus: "failed", numPages: result.numpages };
+        } else {
+          content = text;
+          metadata = { ...metadata, parseStatus: "success", numPages: result.numpages };
+        }
+      } catch (err) {
+        content = NO_TEXT_FOUND;
+        metadata = {
+          ...metadata,
+          parseStatus: "failed",
+          parseError: err instanceof Error ? err.message : String(err),
+        };
+      }
     }
 
     // Create knowledge file record
@@ -70,6 +89,7 @@ export async function POST(req: NextRequest) {
         uploadedBy: user.id,
         metadata: metadata as unknown as import("@prisma/client").Prisma.InputJsonValue,
       },
+      include: { user: { select: { name: true } } },
     });
 
     // Chunk the document and save chunks for RAG search

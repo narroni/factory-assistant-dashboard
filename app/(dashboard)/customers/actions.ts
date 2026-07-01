@@ -55,8 +55,12 @@ export async function getCustomerWithOrders(id: string) {
 
 export async function addCustomer(data: {
   name: string; contactName?: string; email?: string; phone?: string; notes?: string;
-}): Promise<Customer> {
-  await requireAdmin();
+}): Promise<Customer | { error: string }> {
+  try {
+    await requireAdmin();
+  } catch (error) {
+    return { error: error instanceof Error ? error.message : "Permission denied" };
+  }
   const row = await prisma.customer.create({
     data: {
       name: data.name,
@@ -77,8 +81,12 @@ export async function addCustomer(data: {
 
 export async function updateCustomer(id: string, data: {
   name: string; contactName?: string; email?: string; phone?: string; notes?: string;
-}): Promise<Customer> {
-  await requireAdmin();
+}): Promise<Customer | { error: string }> {
+  try {
+    await requireAdmin();
+  } catch (error) {
+    return { error: error instanceof Error ? error.message : "Permission denied" };
+  }
   const before = await prisma.customer.findUnique({ where: { id } });
   const row = await prisma.customer.update({
     where: { id },
@@ -101,8 +109,12 @@ export async function updateCustomer(id: string, data: {
   };
 }
 
-export async function deleteCustomer(id: string): Promise<void> {
-  await requireAdmin();
+export async function deleteCustomer(id: string): Promise<{ error: string } | void> {
+  try {
+    await requireAdmin();
+  } catch (error) {
+    return { error: error instanceof Error ? error.message : "Permission denied" };
+  }
   const before = await prisma.customer.findUnique({ where: { id } });
   await prisma.customer.delete({ where: { id } });
   if (before) await logAuditEvent("Customer", id, "DELETE", { name: before.name });

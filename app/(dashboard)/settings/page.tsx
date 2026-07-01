@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { getCurrentUser } from "../../lib/auth-helpers";
 import { useToast, ToastList } from "../../components/Toast";
 import { ModalShell } from "../../components/ModalShell";
@@ -189,6 +190,8 @@ function ResetPasswordModal({
 }
 
 export default function SettingsPage() {
+  const router = useRouter();
+  const [authChecked, setAuthChecked] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
   const [users, setUsers] = useState<UserInfo[]>([]);
   const [loading, setLoading] = useState(true);
@@ -223,21 +226,21 @@ export default function SettingsPage() {
     (async () => {
       try {
         const user = await getCurrentUser();
-        if (user?.role !== "ADMIN") {
-          setIsAdmin(false);
-          setLoading(false);
-          return;
-        }
+        if (!user) { router.replace("/login"); return; }
+        if (user.role !== "ADMIN") { router.replace("/"); return; }
         setIsAdmin(true);
+        setAuthChecked(true);
         const [userData] = await Promise.all([getUsers(), loadBackups()]);
         setUsers(userData);
       } catch {
-        setIsAdmin(false);
+        router.replace("/");
       } finally {
         setLoading(false);
       }
     })();
-  }, [loadBackups]);
+  }, [loadBackups, router]);
+
+  if (!authChecked) return null;
 
   async function handleCreateBackup() {
     try {

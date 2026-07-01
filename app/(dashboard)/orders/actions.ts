@@ -116,8 +116,12 @@ export async function addOrder(data: {
   product: string; productCode: string; qty: number;
   status: OrderStatus; dueDate: string; value: number;
   lines: Omit<OrderLineData, "id">[];
-}): Promise<Order> {
-  await requireAdmin();
+}): Promise<Order | { error: string }> {
+  try {
+    await requireAdmin();
+  } catch (error) {
+    return { error: error instanceof Error ? error.message : "Permission denied" };
+  }
 
   const dbOrder = await prisma.order.create({
     data: {
@@ -149,8 +153,12 @@ export async function updateOrder(id: string, data: {
   product: string; productCode: string; qty: number;
   status: OrderStatus; dueDate: string; value: number;
   lines: Omit<OrderLineData, "id">[];
-}): Promise<Order> {
-  await requireAdmin();
+}): Promise<Order | { error: string }> {
+  try {
+    await requireAdmin();
+  } catch (error) {
+    return { error: error instanceof Error ? error.message : "Permission denied" };
+  }
   const before = await prisma.order.findUnique({ where: { id } });
 
   // Replace order lines atomically
@@ -182,8 +190,12 @@ export async function updateOrder(id: string, data: {
   return mapOrder(dbOrder);
 }
 
-export async function deleteOrder(id: string): Promise<void> {
-  await requireAdmin();
+export async function deleteOrder(id: string): Promise<{ error: string } | void> {
+  try {
+    await requireAdmin();
+  } catch (error) {
+    return { error: error instanceof Error ? error.message : "Permission denied" };
+  }
   const before = await prisma.order.findUnique({ where: { id } });
   await prisma.order.delete({ where: { id } });
   if (before) {
@@ -193,8 +205,12 @@ export async function deleteOrder(id: string): Promise<void> {
   }
 }
 
-export async function changeOrderStatus(id: string, status: OrderStatus): Promise<Order> {
-  await requireCanChangeStatus("order");
+export async function changeOrderStatus(id: string, status: OrderStatus): Promise<Order | { error: string }> {
+  try {
+    await requireCanChangeStatus("order");
+  } catch (error) {
+    return { error: error instanceof Error ? error.message : "Permission denied" };
+  }
   const before = await prisma.order.findUnique({ where: { id } });
   const dbOrder = await prisma.order.update({
     where: { id },

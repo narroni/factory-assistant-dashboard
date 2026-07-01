@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { loginUser } from "../../auth/actions";
 import { getCurrentUser } from "../../lib/auth-helpers";
-import { useToast } from "../../components/Toast";
+import { useToast, ToastList } from "../../components/Toast";
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
@@ -12,7 +12,7 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(true);
   const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
-  const { showToast } = useToast();
+  const { toasts, showToast } = useToast();
 
   // Redirect to home if already logged in
   useEffect(() => {
@@ -160,9 +160,7 @@ export default function LoginPage() {
       </div>
 
       {/* Toast Container */}
-      <div className="fixed bottom-4 right-4 z-50">
-        <div className="flex flex-col gap-2" />
-      </div>
+      <ToastList toasts={toasts} />
     </div>
   );
 }
