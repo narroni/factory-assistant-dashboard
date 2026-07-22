@@ -3,6 +3,8 @@
 import { prisma } from "../../lib/prisma";
 import { requireAdmin } from "../../lib/auth-helpers";
 import { logAuditEvent } from "../../lib/audit";
+import { getSessionUser } from "../../lib/session";
+import { revalidatePath } from "next/cache";
 
 export type SupplierStatus = "Active" | "Warning" | "Inactive";
 
@@ -50,6 +52,8 @@ function parseLeadTime(str: string): number {
 }
 
 export async function getSuppliers(): Promise<Supplier[]> {
+  const user = await getSessionUser();
+  if (!user) throw new Error("Authentication required");
   try {
     const dbSuppliers = await prisma.supplier.findMany({
       include: {
@@ -139,6 +143,7 @@ export async function addSupplier(data: Omit<Supplier, "id">): Promise<Supplier 
       status: statusFromDb[supplierWithMats.status as keyof typeof statusFromDb],
     });
 
+    revalidatePath("/suppliers");
     return {
       id: supplierWithMats.id,
       name: supplierWithMats.name,
@@ -234,6 +239,7 @@ export async function updateSupplier(
       });
     }
 
+    revalidatePath("/suppliers");
     return {
       id: supplierWithMats.id,
       name: supplierWithMats.name,
@@ -274,6 +280,7 @@ export async function deleteSupplier(id: string): Promise<{ error: string } | vo
         status: statusFromDb[before.status as keyof typeof statusFromDb],
       });
     }
+    revalidatePath("/suppliers");
   } catch (error) {
     console.error("Failed to delete supplier:", error);
     throw new Error("Failed to delete supplier");

@@ -102,7 +102,7 @@ function MaterialModal({
 // ── Page ──────────────────────────────────────────────────────────────────────
 
 export default function MaterialsClient({ initialItems }: { initialItems: Material[] }) {
-  const { t, language } = useTranslation();
+  const { t } = useTranslation();
   const statusLabels: Record<MaterialStatus, string> = {
     "In Stock": t("status.in_stock"),
     "Low Stock": t("status.low_stock"),
@@ -242,10 +242,10 @@ export default function MaterialsClient({ initialItems }: { initialItems: Materi
       {/* KPI strip */}
       <div className="grid grid-cols-4 gap-4">
         {[
-          { label: t("kpi.total_materials", language), value: counts.total,      accent: "text-zinc-100",    sf: "All"          },
-          { label: t("kpi.in_stock", language),        value: counts.inStock,    accent: "text-emerald-400", sf: "In Stock"     },
-          { label: t("kpi.low_stock", language),       value: counts.lowStock,   accent: "text-amber-400",   sf: "Low Stock"    },
-          { label: t("kpi.out_of_stock", language),    value: counts.outOfStock, accent: "text-red-400",     sf: "Out of Stock" },
+          { label: t("kpi.total_materials"), value: counts.total,      accent: "text-zinc-100",    sf: "All"          },
+          { label: t("kpi.in_stock"),        value: counts.inStock,    accent: "text-emerald-400", sf: "In Stock"     },
+          { label: t("kpi.low_stock"),       value: counts.lowStock,   accent: "text-amber-400",   sf: "Low Stock"    },
+          { label: t("kpi.out_of_stock"),    value: counts.outOfStock, accent: "text-red-400",     sf: "Out of Stock" },
         ].map((s) => (
           <button
             key={s.label}
@@ -289,7 +289,7 @@ export default function MaterialsClient({ initialItems }: { initialItems: Materi
               disabled={isViewer}
               className={`px-3 py-2 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 hover:text-zinc-100 text-xs font-medium rounded-lg transition-colors ${isViewer ? "opacity-50 cursor-not-allowed" : ""}`}
             >
-              {t("btn.csv", language)}
+              {t("btn.csv")}
             </button>
             <button
               onClick={() => generateXLSX(
@@ -308,9 +308,9 @@ export default function MaterialsClient({ initialItems }: { initialItems: Materi
               disabled={isViewer}
               className={`px-3 py-2 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 hover:text-zinc-100 text-xs font-medium rounded-lg transition-colors ${isViewer ? "opacity-50 cursor-not-allowed" : ""}`}
             >
-              {t("btn.pdf", language)}
+              {t("btn.pdf")}
             </button>
-            <AddButton onClick={openAdd} label={isWorker ? t("request.request_new_material") : t("btn.add", language)} disabled={isViewer} />
+            <AddButton onClick={openAdd} label={isWorker ? t("request.request_new_material") : t("btn.add")} disabled={isViewer} />
           </div>
         </div>
 

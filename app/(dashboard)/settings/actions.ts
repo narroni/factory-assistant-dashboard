@@ -45,6 +45,30 @@ export async function getUsers(): Promise<UserInfo[]> {
   }
 }
 
+/**
+ * Guards a privileged operation against a target user account.
+ *
+ * `requireAdmin()` admits MANAGER as well as SUPER_ADMIN, so without this a
+ * MANAGER can act on SUPER_ADMIN accounts — reset their password, deactivate
+ * them, or promote themselves. Only a SUPER_ADMIN may touch a SUPER_ADMIN.
+ */
+async function assertCanActOnUser(
+  actingUser: { role: UserRole },
+  targetId: string,
+): Promise<{ id: string; role: UserRole }> {
+  const target = await prisma.user.findUnique({
+    where: { id: targetId },
+    select: { id: true, role: true },
+  });
+  if (!target) {
+    throw new Error("User not found");
+  }
+  if (target.role === "SUPER_ADMIN" && actingUser.role !== "SUPER_ADMIN") {
+    throw new Error("Only Super Admins can modify Super Admin accounts");
+  }
+  return target;
+}
+
 export async function createUser(data: {
   name: string;
   email: string;
@@ -52,7 +76,11 @@ export async function createUser(data: {
   password: string;
 }): Promise<UserInfo> {
   try {
-    await requireAdmin();
+    const actingUser = await requireAdmin();
+
+    if (actingUser.role === "MANAGER" && data.role === "SUPER_ADMIN") {
+      throw new Error("Managers cannot create Super Admin accounts");
+    }
 
     if (!data.name.trim() || !data.email.trim() || !data.password.trim()) {
       throw new Error("Name, email, and password are required");
@@ -109,7 +137,14 @@ export async function updateUser(
   }
 ): Promise<UserInfo> {
   try {
-    await requireAdmin();
+    const actingUser = await requireAdmin();
+
+    // Closes the bypass around createUser's guard: without this a MANAGER could
+    // create a plain MANAGER and immediately promote it to SUPER_ADMIN.
+    await assertCanActOnUser(actingUser, id);
+    if (actingUser.role === "MANAGER" && data.role === "SUPER_ADMIN") {
+      throw new Error("Managers cannot grant the Super Admin role");
+    }
 
     if (!data.name.trim() || !data.email.trim()) {
       throw new Error("Name and email are required");
@@ -156,11 +191,18 @@ export async function updateUser(
 
 export async function deactivateUser(id: string): Promise<UserInfo> {
   try {
-    await requireAdmin();
+    const actingUser = await requireAdmin();
+    const target = await assertCanActOnUser(actingUser, id);
 
-    const user = await prisma.user.findUnique({ where: { id } });
-    if (!user) {
-      throw new Error("User not found");
+    // Never let the last active SUPER_ADMIN be deactivated — that would lock
+    // everyone out of the operations only a SUPER_ADMIN can perform.
+    if (target.role === "SUPER_ADMIN") {
+      const activeSuperAdmins = await prisma.user.count({
+        where: { role: "SUPER_ADMIN", status: "ACTIVE" },
+      });
+      if (activeSuperAdmins <= 1) {
+        throw new Error("Cannot deactivate the last Super Admin");
+      }
     }
 
     const updatedUser = await prisma.user.update({
@@ -185,18 +227,16 @@ export async function deactivateUser(id: string): Promise<UserInfo> {
     };
   } catch (error) {
     console.error("Failed to deactivate user:", error);
-    throw new Error("Failed to deactivate user");
+    // Preserve the message so permission/last-admin guards are visible to the UI
+    // instead of being flattened into a generic failure.
+    throw new Error(error instanceof Error ? error.message : "Failed to deactivate user");
   }
 }
 
 export async function activateUser(id: string): Promise<UserInfo> {
   try {
-    await requireAdmin();
-
-    const user = await prisma.user.findUnique({ where: { id } });
-    if (!user) {
-      throw new Error("User not found");
-    }
+    const actingUser = await requireAdmin();
+    await assertCanActOnUser(actingUser, id);
 
     const updatedUser = await prisma.user.update({
       where: { id },
@@ -220,7 +260,7 @@ export async function activateUser(id: string): Promise<UserInfo> {
     };
   } catch (error) {
     console.error("Failed to activate user:", error);
-    throw new Error("Failed to activate user");
+    throw new Error(error instanceof Error ? error.message : "Failed to activate user");
   }
 }
 
@@ -229,7 +269,8 @@ export async function resetUserPassword(
   newPassword: string
 ): Promise<void> {
   try {
-    await requireAdmin();
+    const actingUser = await requireAdmin();
+    await assertCanActOnUser(actingUser, id);
 
     if (!newPassword.trim()) {
       throw new Error("Password is required");
@@ -252,7 +293,8 @@ export async function setForcePasswordChange(
   forceChange: boolean
 ): Promise<UserInfo> {
   try {
-    await requireAdmin();
+    const actingUser = await requireAdmin();
+    await assertCanActOnUser(actingUser, id);
 
     const updatedUser = await prisma.user.update({
       where: { id },

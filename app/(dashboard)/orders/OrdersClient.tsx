@@ -41,12 +41,21 @@ type CustomerOption = { id: string; name: string };
 
 // ── Order Form ─────────────────────────────────────────────────────────────────
 
+// _key is a client-only stable identity for React list keys on unsaved lines.
+// It is never sent to the server (the action maps lines field-by-field), it just
+// keeps a row's DOM/state bound to that row across insertions and deletions.
+type FormLine = Omit<OrderLineData, "id"> & { _key: string };
+
 type FormState = {
   customer: string; customerId: string;
   product: string; productCode: string; qty: number;
   status: OrderStatus; dueDate: string; value: number;
-  lines: Omit<OrderLineData, "id">[];
+  lines: FormLine[];
 };
+
+function newLine(bp: BPOption): FormLine {
+  return { _key: crypto.randomUUID(), bladeProductId: bp.id, articleCode: bp.articleCode, productName: bp.productName, qty: 0 };
+}
 
 const EMPTY_FORM: FormState = {
   customer: "", customerId: "",
@@ -78,7 +87,7 @@ function OrderForm({
   function addLine() {
     const first = bladeProducts[0];
     if (!first) return;
-    onChange("lines", [...form.lines, { bladeProductId: first.id, articleCode: first.articleCode, productName: first.productName, qty: 0 }]);
+    onChange("lines", [...form.lines, newLine(first)]);
   }
   function removeLine(i: number) { onChange("lines", form.lines.filter((_, idx) => idx !== i)); }
   function updateLine(i: number, field: keyof Omit<OrderLineData, "id">, value: string | number) {
@@ -95,7 +104,7 @@ function OrderForm({
   return (
     <ModalShell
       title={mode === "add" ? t("form.add_order") : t("form.edit_order")}
-      subtitle={`${t("table.order_no")}: ${orderId}`}
+      subtitle={`${t("table.order_no")}: ${mode === "add" ? t("form.order_no_on_save") : orderId}`}
       onClose={onClose}
       maxWidth="max-w-2xl"
       footer={
@@ -178,7 +187,7 @@ function OrderForm({
           )}
 
           {form.lines.map((line, i) => (
-            <div key={i} className="flex items-start gap-2 mb-2 p-2.5 bg-zinc-800 rounded-lg">
+            <div key={line._key} className="flex items-start gap-2 mb-2 p-2.5 bg-zinc-800 rounded-lg">
               <div className="flex-1 grid grid-cols-2 gap-2">
                 <div>
                   <Label>{t("table.article_code")}</Label>
@@ -379,6 +388,11 @@ export default function OrdersClient({ initialItems, bladeProducts, customers }:
   const [formMode, setFormMode]     = useState<"add" | "edit" | null>(null);
   const [editingId, setEditingId]   = useState<string | null>(null);
   const [form, setForm]             = useState<FormState>(EMPTY_FORM);
+  // Generated once when the add form opens (see openAdd) so the number shown to
+  // the user is the same one submitted. Previously each `ORD-${Date.now()}` was
+  // recomputed independently at render, at worker-submit, and in addOrder(), so
+  // all three differed.
+  const [draftOrderNumber, setDraftOrderNumber] = useState("");
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [deleteId, setDeleteId]     = useState<string | null>(null);
   const { toasts, showToast }       = useToast();
@@ -406,7 +420,8 @@ export default function OrdersClient({ initialItems, bladeProducts, customers }:
 
   function setField<K extends keyof FormState>(k: K, v: FormState[K]) { setForm((prev) => ({ ...prev, [k]: v })); }
   function openAdd() {
-    setForm({ ...EMPTY_FORM, lines: bladeProducts.length > 0 ? [{ bladeProductId: bladeProducts[0].id, articleCode: bladeProducts[0].articleCode, productName: bladeProducts[0].productName, qty: 0 }] : [] });
+    setForm({ ...EMPTY_FORM, lines: bladeProducts.length > 0 ? [newLine(bladeProducts[0])] : [] });
+    setDraftOrderNumber(`ORD-${Date.now()}`);
     setEditingId(null); setFormMode("add");
   }
   function openEdit(o: Order) {
@@ -414,7 +429,7 @@ export default function OrdersClient({ initialItems, bladeProducts, customers }:
       customer: o.customer, customerId: o.customerId ?? "",
       product: o.product, productCode: o.productCode, qty: o.qty,
       status: o.status, dueDate: o.dueDate, value: o.value,
-      lines: o.lines.map(({ id: _id, ...rest }) => rest),
+      lines: o.lines.map(({ id, ...rest }) => ({ ...rest, _key: id ?? crypto.randomUUID() })),
     });
     setEditingId(o.id); setFormMode("edit");
   }
@@ -434,7 +449,7 @@ export default function OrdersClient({ initialItems, bladeProducts, customers }:
           body: JSON.stringify({
             type: "CREATE_ORDER",
             payload: {
-              orderNumber: `ORD-${Date.now()}`,
+              orderNumber: draftOrderNumber,
               customer: form.customer,
               customerId: form.customerId || null,
               productName: form.product,
@@ -499,7 +514,10 @@ export default function OrdersClient({ initialItems, bladeProducts, customers }:
   }
 
   const deletingItem = items.find((o) => o.id === deleteId);
-  const pendingOrderId = formMode === "add" ? `ORD-${Date.now()}` : (editingId ?? "");
+  // Add mode shows "Assigned on save" (the server assigns the real number), so
+  // the displayed id is only meaningful when editing. draftOrderNumber is kept
+  // solely for the worker submit payload below, not for display.
+  const pendingOrderId = editingId ?? "";
 
   return (
     <div className="px-6 py-5 flex gap-5">

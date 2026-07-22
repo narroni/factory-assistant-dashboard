@@ -876,7 +876,13 @@ export default function SettingsPage() {
                             </td>
                             <td className="px-4 py-3 text-xs text-zinc-500">{u.lastLoginAt || "Never"}</td>
                             <td className="px-4 py-3 text-xs text-zinc-500">
-                              {userLastActions[u.id] ? `${userLastActions[u.id].actionType} ${userLastActions[u.id].entity}` : "—"}
+                              {(() => {
+                                // Bound to a local so TypeScript can narrow it:
+                                // repeated index access on a non-literal key is
+                                // not carried through by control-flow analysis.
+                                const last = userLastActions[u.id];
+                                return last ? `${last.actionType} ${last.entity}` : "—";
+                              })()}
                             </td>
                             <td className="px-4 py-3 text-xs text-zinc-500">{u.createdAt}</td>
                             <td className="px-4 py-3">

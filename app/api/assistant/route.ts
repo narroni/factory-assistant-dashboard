@@ -61,15 +61,29 @@ function shortCircuit(question: string, language: string): string | null {
 
 const PACKAGING_KEYWORDS = /pack|crate|tower|container|shipment|shipping|ship|fit|load|capacity|weight|volume|footprint|pieces|pcs|mix|optim|split|fill|how many|how much/i;
 
-// Build a regex matching any of the given (real, DB-backed) article codes
+// Build a regex matching any of the given (real, DB-backed) article codes.
+//
+// Two things matter here:
+//  1. Longest-first ordering. Regex alternation is first-match-wins, and the
+//     codes arrive in unspecified DB order, so without sorting "CF-5" could
+//     shadow "CF-55" and silently return another product's packaging figures.
+//  2. Code-character boundaries. \b is unusable because codes contain "-", so
+//     an explicit lookbehind/lookahead excludes the characters a code is made
+//     of. Punctuation such as "," is deliberately NOT excluded, so a list like
+//     "CF-55, CF-44" still matches both.
 function buildArticleCodePattern(codes: string[], flags: string): RegExp | null {
   if (codes.length === 0) return null;
-  const escapedCodes = codes.map((c) => c.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"));
-  return new RegExp(escapedCodes.join("|"), flags);
+  const sorted = [...codes].sort((a, b) => b.length - a.length);
+  const escapedCodes = sorted.map((c) => c.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"));
+  return new RegExp(`(?<![A-Z0-9-])(?:${escapedCodes.join("|")})(?![A-Z0-9-])`, flags);
 }
 
 // Phrases that indicate the question is asking FOR a quantity ("how many fit"), not stating one
 const MAX_CAPACITY_KEYWORDS = /how many|how much|maximum|\bmax\b|fit in|can fit|fill a|capacity/i;
+
+// A number carrying an explicit unit — the only form accepted as a stated
+// quantity. German units included since the assistant answers in DE too.
+const QTY_WITH_UNIT_RX = /\b(\d[\d,\s]*\d|\d+)\s*(?:pieces?|pcs?|units?|stücke?|stk)\b/i;
 
 // Try to extract (articleCode, quantity, containerType) from a free-text question.
 // qty is -1 as a sentinel meaning "calculate maximum capacity" (no specific quantity given, e.g. "how many fit").
@@ -79,11 +93,17 @@ function detectPackagingQuery(question: string, codes: string[]): { articleCode:
   if (/\b40\s*ft\b|\b40\s*foot\b|\b40-foot\b/i.test(question)) containerName = "40ft";
   else if (/\b20\s*ft\b|\b20\s*foot\b|\b20-foot\b/i.test(question)) containerName = "20ft";
 
-  // Quantity: look for number followed by "pieces", "pcs", "units", or just a large standalone number
+  // Quantity: only accept a number carrying an explicit unit, or one directly
+  // introducing an article code ("50,000 of CF-55").
+  //
+  // There is deliberately NO bare-integer fallback: matching any 4+ digit
+  // number turned incidental figures into piece counts — "order ORD-1001"
+  // yielded qty=1001 — and the result is injected into the prompt as an
+  // authoritative calculation. When no explicit quantity is present, qty stays
+  // null and the max-capacity path handles "how many fit" instead.
   let qty: number | null = null;
-  const qtyMatch = question.match(/\b(\d[\d,\s]*\d|\d+)\s*(?:pieces?|pcs?|units?)/i)
-    ?? question.match(/\b([\d,]+)\s+(?:of|x)\s+[A-Z]/i)
-    ?? question.match(/\b(\d{4,})\b/);
+  const qtyMatch = question.match(QTY_WITH_UNIT_RX)
+    ?? question.match(/\b([\d,]+)\s+(?:of|x)\s+[A-Z]/i);
   if (qtyMatch) {
     qty = parseInt(qtyMatch[1].replace(/[,\s]/g, ""), 10) || null;
   }
@@ -107,7 +127,7 @@ function extractQuantityNear(window: string): number | null {
   const kMatch = window.match(/\b(\d+(?:\.\d+)?)\s*k\b/i);
   if (kMatch) return Math.round(parseFloat(kMatch[1]) * 1000);
 
-  const pcsMatch = window.match(/\b(\d[\d,\s]*\d|\d+)\s*(?:pieces?|pcs?|units?)\b/i);
+  const pcsMatch = window.match(QTY_WITH_UNIT_RX);
   if (pcsMatch) return parseInt(pcsMatch[1].replace(/[,\s]/g, ""), 10) || null;
 
   const ofMatch = window.match(/\b([\d,]+)\s+of\b/i) ?? window.match(/\bof\s+([\d,]+)\b/i);
@@ -116,14 +136,18 @@ function extractQuantityNear(window: string): number | null {
   const colonMatch = window.match(/:\s*([\d,]+)\b/);
   if (colonMatch) return parseInt(colonMatch[1].replace(/[,\s]/g, ""), 10) || null;
 
-  const genericMatch = window.match(/\b(\d{4,}|\d{1,3}(?:,\d{3})+)\b/);
-  if (genericMatch) return parseInt(genericMatch[1].replace(/[,\s]/g, ""), 10) || null;
-
+  // No bare-integer fallback — see detectPackagingQuery(). Any 4+ digit number
+  // inside the ±40-char window used to become that product's quantity, so a
+  // year or an order number silently drove the optimizer.
   return null;
 }
 
-// Signals a multi-product "mix" question even when no quantities are stated
-const MIX_KEYWORDS = /\bmix\b|\bcombine[ds]?\b|\btogether\b|\bboth\b|\bsplit\b|\bfill\b|\band\b/i;
+// Signals a multi-product "mix" question even when no quantities are stated.
+// "and" is deliberately excluded: it appears in almost any question naming two
+// products ("stock for CF-55 and CF-44"), which sent plain inventory lookups
+// down the container-optimization path. A genuine mix question always carries
+// one of the words below.
+const MIX_KEYWORDS = /\bmix\b|\bcombine[ds]?\b|\btogether\b|\bboth\b|\bsplit\b|\bfill\b/i;
 
 // Detect a multi-product question, e.g.
 // "100000 pieces of CF-55 and 50000 of CF-44"  (explicit quantities)

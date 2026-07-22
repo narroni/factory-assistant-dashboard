@@ -139,7 +139,7 @@ function SupplierForm({ mode, form, onChange, onSave, onClose }: {
 // ── Page ──────────────────────────────────────────────────────────────────────
 
 export default function SuppliersClient({ initialItems }: { initialItems: Supplier[] }) {
-  const { t, language } = useTranslation();
+  const { t } = useTranslation();
   const statusLabels: Record<SupplierStatus, string> = {
     "Active": t("status.active"),
     "Warning": t("status.warning"),
@@ -278,7 +278,7 @@ export default function SuppliersClient({ initialItems }: { initialItems: Suppli
               )}
               className="px-3 py-2 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 hover:text-zinc-100 text-xs font-medium rounded-lg transition-colors"
             >
-              {t("btn.csv", language)}
+              {t("btn.csv")}
             </button>
             <button
               onClick={() => generateXLSX(

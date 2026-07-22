@@ -218,6 +218,7 @@ export const dictionaries: Record<Language, Record<string, string>> = {
     "form.edit_product_subtitle": "Update product specification.",
     "form.add_order": "Add Order",
     "form.edit_order": "Edit Order",
+    "form.order_no_on_save": "Assigned on save",
     "form.add_material": "Add Material",
     "form.edit_material": "Edit Material",
     "form.add_customer": "Add Customer",
@@ -791,7 +792,6 @@ export const dictionaries: Record<Language, Record<string, string>> = {
     "pagination.showing": "Anzeige",
 
     // Filters
-    "filter.all": "Alle",
     "filter.active": "Aktiv",
     "filter.inactive": "Inaktiv",
     "filter.pending": "Ausstehend",
@@ -802,7 +802,6 @@ export const dictionaries: Record<Language, Record<string, string>> = {
     "filter.low_stock": "Niedriger Bestand",
     "filter.in_stock": "Auf Lager",
     "filter.out_of_stock": "Nicht auf Lager",
-    "filter.clear_filters": "Filter zurücksetzen",
 
     // Search & placeholders
     "search.placeholder_products": "Artikelnummer, Name, Farbe suchen…",
@@ -819,6 +818,7 @@ export const dictionaries: Record<Language, Record<string, string>> = {
     "form.edit_product_subtitle": "Produktspezifikation aktualisieren.",
     "form.add_order": "Bestellung hinzufügen",
     "form.edit_order": "Bestellung bearbeiten",
+    "form.order_no_on_save": "Wird beim Speichern vergeben",
     "form.add_material": "Material hinzufügen",
     "form.edit_material": "Material bearbeiten",
     "form.add_customer": "Kunde hinzufügen",
@@ -893,11 +893,7 @@ export const dictionaries: Record<Language, Record<string, string>> = {
     "form.required_field": "*",
 
     // Empty states
-    "empty.no_products": "Keine Produkte gefunden.",
-    "empty.no_orders": "Keine Bestellungen gefunden.",
-    "empty.no_materials": "Keine Materialien gefunden.",
     "empty.no_customers": "Keine Kunden gefunden.",
-    "empty.no_suppliers": "Keine Lieferanten gefunden.",
     "empty.no_results": "Keine Ergebnisse gefunden.",
 
     // Delete confirmation

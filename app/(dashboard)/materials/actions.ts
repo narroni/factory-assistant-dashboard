@@ -3,6 +3,8 @@
 import { prisma } from "../../lib/prisma";
 import { requireAdmin, requireCanChangeStatus } from "../../lib/auth-helpers";
 import { logAuditEvent } from "../../lib/audit";
+import { getSessionUser } from "../../lib/session";
+import { revalidatePath } from "next/cache";
 
 export type MaterialStatus = "In Stock" | "Low Stock" | "Out of Stock";
 
@@ -31,6 +33,8 @@ const statusFromDb = {
 } as const;
 
 export async function getMaterials(): Promise<Material[]> {
+  const user = await getSessionUser();
+  if (!user) throw new Error("Authentication required");
   try {
     const dbMaterials = await prisma.material.findMany({
       orderBy: { createdAt: "desc" },
@@ -79,6 +83,7 @@ export async function addMaterial(data: Omit<Material, "id">): Promise<Material 
       status: statusFromDb[dbMaterial.status as keyof typeof statusFromDb],
     });
 
+    revalidatePath("/materials");
     return {
       id: dbMaterial.id,
       name: dbMaterial.name,
@@ -139,6 +144,7 @@ export async function updateMaterial(
       }, afterData);
     }
 
+    revalidatePath("/materials");
     return {
       id: dbMaterial.id,
       name: dbMaterial.name,
@@ -178,6 +184,7 @@ export async function deleteMaterial(id: string): Promise<{ error: string } | vo
         status: statusFromDb[before.status as keyof typeof statusFromDb],
       });
     }
+    revalidatePath("/materials");
   } catch (error) {
     console.error("Failed to delete material:", error);
     throw new Error("Failed to delete material");

@@ -14,7 +14,8 @@ export async function PATCH(req: NextRequest, ctx: Ctx) {
   }
 
   const { id } = await ctx.params;
-  const body = await req.json().catch(() => ({})) as { action?: string; comment?: string };
+  const body = await req.json().catch(() => null) as { action?: string; comment?: string } | null;
+  if (!body) return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
   const { action, comment } = body;
 
   if (action !== "APPROVE" && action !== "REJECT") {

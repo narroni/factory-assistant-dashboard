@@ -96,6 +96,7 @@ model User {
   aiRules             AIRule[]
   requestsMade        WorkerRequest[] @relation("RequestedBy")
   requestsReviewed    WorkerRequest[] @relation("ReviewedBy")
+  sessions            Session[] @relation("UserSessions")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -652,4 +653,25 @@ model KnowledgeEmbedding {
   createdAt DateTime @default(now())
 
   @@map("knowledge_embeddings")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Session — server-side session records.
+//
+// `id` is the opaque session token stored in the cookie: 32 random bytes,
+// base64url-encoded. It is NOT derived from the user id, so a cookie cannot be
+// forged by knowing (or guessing) a user id. Deleting the row revokes the
+// session immediately.
+// ─────────────────────────────────────────────────────────────────────────────
+model Session {
+  id        String   @id @default(cuid())
+  userId    String
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  user      User     @relation("UserSessions", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expiresAt])
+  @@map("sessions")
 }

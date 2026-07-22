@@ -1,12 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { readFile, stat } from "fs/promises";
-import { exec } from "child_process";
+import { execFile } from "child_process";
 import { promisify } from "util";
 import path from "path";
 import { prisma } from "../../../lib/prisma";
 import { getCurrentUser } from "../../../lib/auth-helpers";
 
-const execAsync = promisify(exec);
+const execFileAsync = promisify(execFile);
 
 const BACKUP_DIR = path.join(process.cwd(), "backups");
 const PSQL = "/Applications/Postgres.app/Contents/Versions/latest/bin/psql";
@@ -78,19 +78,33 @@ export async function POST(_req: NextRequest, ctx: RouteContext) {
 
     const db = parseDatabaseUrl(process.env.DATABASE_URL!);
 
+    // argv arrays, no shell: the SQL string and filepath are passed as single
+    // arguments and can never be reinterpreted as shell syntax. The password
+    // goes through the environment, never argv.
+    const psqlEnv = { ...process.env, PGPASSWORD: db.password };
+    const psqlConn = [
+      "-h", db.host,
+      "-p", db.port,
+      "-U", db.user,
+      "-d", db.database,
+    ];
+
     // Drop all tables (using psql to execute schema reset)
-    const dropCmd = `PGPASSWORD="${db.password}" "${PSQL}" -h ${db.host} -p ${db.port} -U ${db.user} -d ${db.database} -c "DROP SCHEMA public CASCADE; CREATE SCHEMA public;"`;
-    await execAsync(dropCmd);
+    await execFileAsync(
+      PSQL,
+      [...psqlConn, "-c", "DROP SCHEMA public CASCADE; CREATE SCHEMA public;"],
+      { env: psqlEnv },
+    );
 
     // Restore the dump
-    const restoreCmd = `PGPASSWORD="${db.password}" "${PSQL}" -h ${db.host} -p ${db.port} -U ${db.user} -d ${db.database} -f "${filepath}"`;
-    await execAsync(restoreCmd);
+    await execFileAsync(PSQL, [...psqlConn, "-f", filepath], { env: psqlEnv });
 
     return NextResponse.json({ success: true, restored: record.filename });
   } catch (error) {
-    console.error("Backup restore error:", error);
-    const message = error instanceof Error ? error.message : "Failed to restore backup";
-    return NextResponse.json({ error: message }, { status: 500 });
+    // Log in full server-side; never return the message to the client — psql
+    // failures echo the invocation, which previously leaked DB credentials.
+    console.error("[backup] psql restore failed:", error);
+    return NextResponse.json({ error: "Restore failed. Check server logs." }, { status: 500 });
   }
 }
 

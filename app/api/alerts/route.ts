@@ -1,7 +1,11 @@
 import { prisma } from "../../lib/prisma";
+import { getSessionUser } from "../../lib/session";
 import { NextResponse } from "next/server";
 
 export async function GET() {
+  const user = await getSessionUser();
+  if (!user) return NextResponse.json({ error: "Authentication required" }, { status: 401 });
+
   try {
     const [lowStockMaterials, delayedOrders, pendingOrders] = await Promise.all([
       prisma.material.findMany({

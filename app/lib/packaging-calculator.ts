@@ -91,6 +91,15 @@ export async function calculatePackaging(input: PackagingInput): Promise<Packagi
 
   const crate = product.crateType;
 
+  // Spec fields are not validated on write, so a zero is reachable and would
+  // make every derived figure Infinity/NaN. Same guard as calculateMaxCapacity().
+  if (!product.pcsPerCrate || product.pcsPerCrate <= 0) {
+    throw new Error(`Invalid pcsPerCrate for ${articleCode}: ${product.pcsPerCrate}`);
+  }
+  if (!product.maxCratesPerTower || product.maxCratesPerTower <= 0) {
+    throw new Error(`Invalid maxCratesPerTower for ${articleCode}: ${product.maxCratesPerTower}`);
+  }
+
   // Crate calculations
   const requiredCratesExact = qty / product.pcsPerCrate;
   const fullCrates = Math.ceil(requiredCratesExact);
@@ -288,12 +297,33 @@ export async function calculateMaxCapacity(input: MaxCapacityInput): Promise<Max
   const crate = product.crateType;
   const maxFootprintM2 = container.lengthMeters * container.widthMeters;
 
+  // Spec fields are not validated on write, so a zero here is reachable. Left
+  // unguarded, every division below yields Infinity and the result is injected
+  // into the AI prompt as an authoritative figure. Fail loudly instead — the
+  // caller renders the message as a "could not compute" note.
+  if (!product.pcsPerCrate || product.pcsPerCrate <= 0) {
+    throw new Error(`Invalid pcsPerCrate for ${articleCode}`);
+  }
+  if (!product.maxCratesPerTower || product.maxCratesPerTower <= 0) {
+    throw new Error(`Invalid maxCratesPerTower for ${articleCode}`);
+  }
+
   // Per-crate figures
   const crateWeightKg = product.weightAfterPunchingKg * product.pcsPerCrate + crate.emptyWeightKg;
   const crateVolumeM3 = crate.xMeters * crate.yMeters * crate.zMeters;
   const towerFootprintM2 = crate.xMeters * crate.zMeters;
   // Footprint is shared by all crates stacked in a tower, so express it per-crate as an amortized share
   const crateFootprintM2 = towerFootprintM2 / product.maxCratesPerTower;
+
+  if (!crateWeightKg || crateWeightKg <= 0) {
+    throw new Error(`Invalid crate weight for ${articleCode}`);
+  }
+  if (!crateVolumeM3 || crateVolumeM3 <= 0) {
+    throw new Error(`Invalid crate volume for ${articleCode}`);
+  }
+  if (!crateFootprintM2 || crateFootprintM2 <= 0) {
+    throw new Error(`Invalid crate footprint for ${articleCode}`);
+  }
 
   const cratesFitByWeight = Math.floor(container.maxPayloadKg / crateWeightKg);
   const cratesFitByVolume = Math.floor(container.maxVolumeM3 / crateVolumeM3);
@@ -434,14 +464,45 @@ export async function optimizeContainerMix(input: OptimizationInput): Promise<Op
 
     const crate = spec.crateType;
 
+    // Guard the divisors per product. A bad spec must not silently poison the
+    // combined totals with Infinity/NaN; report it against that product and
+    // keep the rest of the mix computable.
+    const crateVolumeM3 = crate.xMeters * crate.yMeters * crate.zMeters;
+    const crateFootprintM2 = crate.xMeters * crate.zMeters;
+    const invalid =
+      !spec.pcsPerCrate || spec.pcsPerCrate <= 0
+        ? `Invalid pcsPerCrate for ${req.articleCode}`
+        : !spec.maxCratesPerTower || spec.maxCratesPerTower <= 0
+          ? `Invalid maxCratesPerTower for ${req.articleCode}`
+          : !crateVolumeM3 || crateVolumeM3 <= 0
+            ? `Invalid crate volume for ${req.articleCode}`
+            : !crateFootprintM2 || crateFootprintM2 <= 0
+              ? `Invalid crate footprint for ${req.articleCode}`
+              : null;
+
+    if (invalid) {
+      productResults.push({
+        articleCode: req.articleCode,
+        productName: spec.productName,
+        quantity: req.quantity,
+        crates: 0,
+        towers: 0,
+        weightKg: 0,
+        footprintM2: 0,
+        volumeM3: 0,
+        error: invalid,
+      });
+      continue;
+    }
+
     // Same math as calculatePackaging()
     const fullCrates = Math.ceil(req.quantity / spec.pcsPerCrate);
     const towers = Math.ceil(fullCrates / spec.maxCratesPerTower);
     const netWeightKg = req.quantity * spec.weightAfterPunchingKg;
     const crateWeightKg = fullCrates * crate.emptyWeightKg;
     const weightKg = netWeightKg + crateWeightKg;
-    const footprintM2 = towers * (crate.xMeters * crate.zMeters);
-    const volumeM3 = fullCrates * (crate.xMeters * crate.yMeters * crate.zMeters);
+    const footprintM2 = towers * crateFootprintM2;
+    const volumeM3 = fullCrates * crateVolumeM3;
 
     totalWeightKg += weightKg;
     totalVolumeM3 += volumeM3;

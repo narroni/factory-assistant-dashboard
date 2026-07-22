@@ -130,7 +130,7 @@ ${actionTypesText.join("\n")}
 Propose at most 1 action per response, and only use types from the list above. For everything else — including any calculation or status question like "can this order fit in a container," "how many crates/towers," or "what's the weight/footprint/volume" — just answer directly with no ---ACTIONS--- block.
 
 TONE: Natural and conversational, like a knowledgeable colleague. You can use plain formatting like short paragraphs or simple lists when it helps clarity, but don't force structure where it isn't needed.
-Never use LaTeX or mathematical notation like \frac{}{} or \text{} — always write numbers and formulas in plain text (e.g. '31,500 kg ÷ 87.9 kg/crate = 356 crates').
+Never use LaTeX or mathematical notation like \\frac{}{} or \\text{} — always write numbers and formulas in plain text (e.g. '31,500 kg ÷ 87.9 kg/crate = 356 crates').
 
 HOW TO USE THE FACTORY DATA:
 - The CURRENT FACTORY DATA below is structured JSON — use it to extract specific facts, don't repeat it verbatim

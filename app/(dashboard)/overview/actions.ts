@@ -1,8 +1,11 @@
 "use server";
 
 import { prisma } from "../../lib/prisma";
+import { getSessionUser } from "../../lib/session";
 
 export async function getOverviewData() {
+  const user = await getSessionUser();
+  if (!user) throw new Error("Authentication required");
   try {
     const [
       materialCount,
@@ -112,19 +115,10 @@ export async function getOverviewData() {
       aiRequests: { pending: aiPending, approvedToday: aiApprovedToday, rejectedToday: aiRejectedToday, executedToday: aiExecutedToday },
     };
   } catch (error) {
-    console.error("Failed to fetch overview data:", error);
-    return {
-      totalMaterials: 0,
-      inStockMaterials: 0,
-      lowStockItems: 0,
-      outOfStockItems: 0,
-      openOrders: 0,
-      inProductionOrders: 0,
-      totalOrderValue: 0,
-      recentOrders: [],
-      lowStockAlerts: [],
-      systemAlerts: [],
-      aiRequests: { pending: 0, approvedToday: 0, rejectedToday: 0, executedToday: 0 },
-    };
+    // Do NOT return an all-zeros object here: it rendered as a healthy dashboard
+    // ("All systems operational, no alerts") during a database outage. Rethrow so
+    // the dashboard error boundary (app/(dashboard)/error.tsx) is shown instead.
+    console.error("[overview] failed to load dashboard data:", error);
+    throw error;
   }
 }

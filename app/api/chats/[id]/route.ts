@@ -36,7 +36,8 @@ export async function PATCH(req: NextRequest, ctx: Ctx) {
   if (user.role !== "SUPER_ADMIN" && user.role !== "MANAGER" && chat.userId !== user.id)
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
-  const body = await req.json().catch(() => ({}));
+  const body = await req.json().catch(() => null);
+  if (!body) return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
   const updated = await prisma.assistantChat.update({
     where: { id },
     data: { title: body.title ?? chat.title },
