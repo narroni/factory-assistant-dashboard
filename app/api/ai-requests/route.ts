@@ -8,7 +8,7 @@ export async function GET() {
   const user = await getSessionUser();
   if (!user) return NextResponse.json({ error: "Unauthenticated" }, { status: 401 });
 
-  const where = user.role === "ADMIN" ? {} : { createdByUserId: user.id };
+  const where = user.role === "SUPER_ADMIN" || user.role === "MANAGER" ? {} : { createdByUserId: user.id };
 
   const requests = await prisma.aIActionRequest.findMany({
     where,

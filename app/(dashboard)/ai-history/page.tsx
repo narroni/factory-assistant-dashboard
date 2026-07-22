@@ -5,7 +5,7 @@ import AIHistoryClient from "./AIHistoryClient";
 
 export default async function AIHistoryPage() {
   const user = await getSessionUser();
-  if (!user || user.role !== "ADMIN") return <AccessDenied />;
+  if (!user || (user.role !== "SUPER_ADMIN" && user.role !== "MANAGER")) return <AccessDenied />;
 
   const chats = await getChats();
   return <AIHistoryClient initialChats={chats} />;

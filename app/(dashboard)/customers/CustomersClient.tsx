@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useAuth } from "../../hooks/useAuth";
+import { useTranslation } from "../../hooks/useTranslation";
 import { ModalShell } from "../../components/ModalShell";
 import { DeleteConfirm } from "../../components/DeleteConfirm";
 import { useToast, ToastList } from "../../components/Toast";
@@ -18,27 +19,28 @@ function CustomerModal({ mode, form, onChange, onSave, onClose }: {
   onChange: <K extends keyof FormState>(k: K, v: string) => void;
   onSave: () => void; onClose: () => void;
 }) {
+  const { t } = useTranslation();
   return (
     <ModalShell
-      title={mode === "add" ? "Add Customer" : "Edit Customer"}
+      title={mode === "add" ? t("form.add_customer") : t("form.edit_customer")}
       onClose={onClose}
       footer={
         <>
-          <button onClick={onClose} className="px-4 py-2 text-sm text-zinc-400 hover:text-zinc-200 transition-colors">Cancel</button>
+          <button onClick={onClose} className="px-4 py-2 text-sm text-zinc-400 hover:text-zinc-200 transition-colors">{t("delete.cancel")}</button>
           <button onClick={onSave} disabled={!form.name.trim()} className="px-5 py-2 bg-zinc-700 hover:bg-zinc-600 disabled:opacity-40 text-white text-sm font-medium rounded-lg transition-colors">
-            {mode === "add" ? "Add Customer" : "Save"}
+            {mode === "add" ? t("action.add_customer") : t("btn.save")}
           </button>
         </>
       }
     >
       <div className="space-y-3">
-        <div><Label>Name <span className="text-red-500">*</span></Label><input className={inputCls} value={form.name} onChange={(e) => onChange("name", e.target.value)} placeholder="e.g. Vestas Wind Systems" /></div>
-        <div><Label>Contact Person</Label><input className={inputCls} value={form.contactName} onChange={(e) => onChange("contactName", e.target.value)} placeholder="e.g. Hans Müller" /></div>
+        <div><Label>{t("form.label_name")} <span className="text-red-500">{t("form.required_field")}</span></Label><input className={inputCls} value={form.name} onChange={(e) => onChange("name", e.target.value)} placeholder="e.g. Vestas Wind Systems" /></div>
+        <div><Label>{t("form.label_contact_person")}</Label><input className={inputCls} value={form.contactName} onChange={(e) => onChange("contactName", e.target.value)} placeholder="e.g. Hans Müller" /></div>
         <div className="grid grid-cols-2 gap-3">
-          <div><Label>Email</Label><input type="email" className={inputCls} value={form.email} onChange={(e) => onChange("email", e.target.value)} placeholder="contact@company.com" /></div>
-          <div><Label>Phone</Label><input type="tel" className={inputCls} value={form.phone} onChange={(e) => onChange("phone", e.target.value)} placeholder="+49 …" /></div>
+          <div><Label>{t("form.label_email")}</Label><input type="email" className={inputCls} value={form.email} onChange={(e) => onChange("email", e.target.value)} placeholder="contact@company.com" /></div>
+          <div><Label>{t("form.label_phone")}</Label><input type="tel" className={inputCls} value={form.phone} onChange={(e) => onChange("phone", e.target.value)} placeholder="+49 …" /></div>
         </div>
-        <div><Label>Notes</Label><textarea className={`${inputCls} resize-none`} rows={3} value={form.notes} onChange={(e) => onChange("notes", e.target.value)} placeholder="Any notes…" /></div>
+        <div><Label>{t("table.notes")}</Label><textarea className={`${inputCls} resize-none`} rows={3} value={form.notes} onChange={(e) => onChange("notes", e.target.value)} placeholder="Any notes…" /></div>
       </div>
     </ModalShell>
   );
@@ -96,6 +98,7 @@ function DetailPanel({ customer, onClose, onEdit, onDelete }: {
 // ── Page ──────────────────────────────────────────────────────────────────────
 
 export default function CustomersClient({ initialItems }: { initialItems: Customer[] }) {
+  const { t } = useTranslation();
   const { user } = useAuth();
   const isViewer = user?.role === "VIEWER";
   const [items, setItems]         = useState<Customer[]>(initialItems);
@@ -160,15 +163,15 @@ export default function CustomersClient({ initialItems }: { initialItems: Custom
         {/* Summary */}
         <div className="grid grid-cols-3 gap-3">
           <div className="bg-zinc-900 border border-zinc-800 rounded-lg px-4 py-3">
-            <p className="text-xs text-zinc-500 uppercase tracking-wider mb-1">Total Customers</p>
+            <p className="text-xs text-zinc-500 uppercase tracking-wider mb-1">{t("summary.total_customers")}</p>
             <p className="text-xl font-bold text-zinc-100">{items.length}</p>
           </div>
           <div className="bg-zinc-900 border border-zinc-800 rounded-lg px-4 py-3">
-            <p className="text-xs text-zinc-500 uppercase tracking-wider mb-1">Total Orders</p>
+            <p className="text-xs text-zinc-500 uppercase tracking-wider mb-1">{t("kpi.total_orders")}</p>
             <p className="text-xl font-bold text-zinc-100">{items.reduce((s, c) => s + c.orderCount, 0)}</p>
           </div>
           <div className="bg-zinc-900 border border-zinc-800 rounded-lg px-4 py-3">
-            <p className="text-xs text-zinc-500 uppercase tracking-wider mb-1">Total Value</p>
+            <p className="text-xs text-zinc-500 uppercase tracking-wider mb-1">{t("table.total_value")}</p>
             <p className="text-xl font-bold text-zinc-100">€{(items.reduce((s, c) => s + c.totalOrderValue, 0) / 1000).toFixed(0)}k</p>
           </div>
         </div>
@@ -176,29 +179,29 @@ export default function CustomersClient({ initialItems }: { initialItems: Custom
         {/* Table */}
         <section className="bg-zinc-900 rounded-lg border border-zinc-800">
           <div className="flex items-center gap-3 px-5 py-3 border-b border-zinc-800">
-            <SearchInput value={search} onChange={setSearch} placeholder="Search name, contact, email…" />
+            <SearchInput value={search} onChange={setSearch} placeholder={t("search.placeholder_customers")} />
             <div className="ml-auto">
-              <AddButton onClick={openAdd} label="Add Customer" />
+              <AddButton onClick={openAdd} label={t("action.add_customer")} />
             </div>
           </div>
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
                 <tr className="text-left text-xs text-zinc-600 uppercase tracking-wider border-b border-zinc-800">
-                  <th className="px-5 py-2 font-medium">Name</th>
-                  <th className="px-5 py-2 font-medium">Contact</th>
-                  <th className="px-5 py-2 font-medium">Email</th>
-                  <th className="px-5 py-2 font-medium">Phone</th>
-                  <th className="px-5 py-2 font-medium text-right">Orders</th>
-                  <th className="px-5 py-2 font-medium text-right">Total Value</th>
-                  <th className="px-5 py-2 font-medium">Last Order</th>
+                  <th className="px-5 py-2 font-medium">{t("form.label_name")}</th>
+                  <th className="px-5 py-2 font-medium">{t("form.label_contact_person")}</th>
+                  <th className="px-5 py-2 font-medium">{t("form.label_email")}</th>
+                  <th className="px-5 py-2 font-medium">{t("form.label_phone")}</th>
+                  <th className="px-5 py-2 font-medium text-right">{t("kpi.total_orders")}</th>
+                  <th className="px-5 py-2 font-medium text-right">{t("table.total_value")}</th>
+                  <th className="px-5 py-2 font-medium">{t("table.order_date")}</th>
                   <th className="px-5 py-2 font-medium"></th>
                 </tr>
               </thead>
               <tbody>
                 {filtered.length === 0 ? (
                   <tr><td colSpan={8} className="px-5 py-12 text-center text-xs text-zinc-600">
-                    {items.length === 0 ? "No customers yet. Add your first customer." : "No customers match your search."}
+                    {items.length === 0 ? t("empty.no_customers") : t("filter.no_results")}
                   </td></tr>
                 ) : filtered.map((c, i) => (
                   <tr
@@ -236,7 +239,7 @@ export default function CustomersClient({ initialItems }: { initialItems: Custom
       )}
 
       {formMode && <CustomerModal mode={formMode} form={form} onChange={setField} onSave={saveItem} onClose={closeForm} />}
-      {deleteId && deletingItem && <DeleteConfirm title="Delete Customer" itemName={deletingItem.name} onConfirm={confirmDelete} onClose={() => setDeleteId(null)} />}
+      {deleteId && deletingItem && <DeleteConfirm title={t("delete.title_customer")} itemName={deletingItem.name} onConfirm={confirmDelete} onClose={() => setDeleteId(null)} />}
       <ToastList toasts={toasts} />
     </div>
   );

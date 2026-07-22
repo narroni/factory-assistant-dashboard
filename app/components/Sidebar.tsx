@@ -58,18 +58,18 @@ function SignOutIcon() {
 // ── Nav config ─────────────────────────────────────────────────────────────────
 
 const mainNav = [
-  { key: "overview",   href: "/",           Icon: GridIcon },
-  { key: "materials",  href: "/materials",  Icon: BoxIcon },
-  { key: "products",   href: "/products",   Icon: LayersIcon },
-  { key: "customers",  href: "/customers",  Icon: UsersIcon },
-  { key: "suppliers",  href: "/suppliers",  Icon: TruckIcon },
-  { key: "reports",    href: "/reports",    Icon: BarChartIcon },
+  { key: "overview",   href: "/",           Icon: GridIcon,     viewerHidden: false },
+  { key: "materials",  href: "/materials",  Icon: BoxIcon,      viewerHidden: false },
+  { key: "products",   href: "/products",   Icon: LayersIcon,   viewerHidden: false },
+  { key: "customers",  href: "/customers",  Icon: UsersIcon,    viewerHidden: true },
+  { key: "suppliers",  href: "/suppliers",  Icon: TruckIcon,    viewerHidden: true },
+  { key: "reports",    href: "/reports",    Icon: BarChartIcon, viewerHidden: false },
 ];
 
 // Orders sub-group (orders + packaging calculator)
 const ordersNav = [
-  { key: "orders",               href: "/orders",               Icon: ClipboardIcon },
-  { key: "packaging_calculator", href: "/packaging-calculator", Icon: PackageIcon },
+  { key: "orders",               href: "/orders",               Icon: ClipboardIcon, viewerHidden: true },
+  { key: "packaging_calculator", href: "/packaging-calculator", Icon: PackageIcon,   viewerHidden: false },
 ];
 
 const aiNav = [
@@ -155,6 +155,7 @@ export default function Sidebar() {
   const [userInitials, setUserInitials] = useState("U");
   const [userRole, setUserRole] = useState("Worker");
   const [role, setRole] = useState("");
+  const [pendingRequestCount, setPendingRequestCount] = useState(0);
 
   useEffect(() => {
     fetch("/api/auth/me")
@@ -172,7 +173,25 @@ export default function Sidebar() {
       .catch(() => {});
   }, []);
 
-  const visibleAiNav = aiNav.filter((n) => !n.adminOnly || role === "ADMIN");
+  const isManagerOrAbove = role === "SUPER_ADMIN" || role === "MANAGER";
+
+  useEffect(() => {
+    if (!isManagerOrAbove) return;
+    function loadCount() {
+      fetch("/api/requests/count")
+        .then((r) => r.ok ? r.json() : null)
+        .then((d) => { if (typeof d?.count === "number") setPendingRequestCount(d.count); })
+        .catch(() => {});
+    }
+    loadCount();
+    const interval = setInterval(loadCount, 60000);
+    return () => clearInterval(interval);
+  }, [isManagerOrAbove]);
+
+  const visibleAiNav = aiNav.filter((n) => !n.adminOnly || role === "SUPER_ADMIN" || role === "MANAGER");
+  const visibleMainNav = mainNav.filter((n) => !n.viewerHidden || role !== "VIEWER");
+  const visibleOrdersNav = ordersNav.filter((n) => !n.viewerHidden || role !== "VIEWER");
+  const canSeeSettings = role === "SUPER_ADMIN" || role === "MANAGER";
 
   async function handleSignOut() {
     try {
@@ -189,7 +208,7 @@ export default function Sidebar() {
   }
 
   const aiActive = visibleAiNav.some((n) => isActive(n.href));
-  const ordersActive = ordersNav.some((n) => isActive(n.href));
+  const ordersActive = visibleOrdersNav.some((n) => isActive(n.href));
 
   return (
     <aside
@@ -227,7 +246,7 @@ export default function Sidebar() {
 
       {/* Nav */}
       <nav className="flex flex-col gap-0.5 px-2 py-3 flex-1 overflow-y-auto">
-        {mainNav.map(({ key, href, Icon }) => (
+        {visibleMainNav.map(({ key, href, Icon }) => (
           <NavLink
             key={key}
             href={href}
@@ -239,8 +258,8 @@ export default function Sidebar() {
         ))}
 
         {/* Orders group: Orders + Packaging Calculator */}
-        {collapsed ? (
-          ordersNav.map(({ key, href, Icon }) => (
+        {visibleOrdersNav.length > 0 && (collapsed ? (
+          visibleOrdersNav.map(({ key, href, Icon }) => (
             <NavLink
               key={key}
               href={href}
@@ -264,7 +283,7 @@ export default function Sidebar() {
             </button>
             {ordersOpen && (
               <div className="ml-3 pl-3 border-l border-zinc-800 flex flex-col gap-0.5 mt-0.5">
-                {ordersNav.map(({ key, href, Icon }) => (
+                {visibleOrdersNav.map(({ key, href, Icon }) => (
                   <NavLink
                     key={key}
                     href={href}
@@ -277,7 +296,7 @@ export default function Sidebar() {
               </div>
             )}
           </>
-        )}
+        ))}
 
         {/* Assistant section */}
         <div className="mt-2">
@@ -323,16 +342,62 @@ export default function Sidebar() {
           )}
         </div>
 
-        <div className="mt-auto pt-2">
-          {!collapsed && <div className="h-px bg-zinc-800 mx-1 mb-1.5" />}
-          <NavLink
-            href="/settings"
-            Icon={GearIcon}
-            label={t("nav.settings", language)}
-            active={isActive("/settings")}
-            collapsed={collapsed}
-          />
-        </div>
+        {/* Worker: My Requests */}
+        {role === "WORKER" && (
+          <div className="mt-2">
+            <div className="h-px bg-zinc-800 mx-1 my-1.5" />
+            <NavLink
+              href="/my-requests"
+              Icon={InboxIcon}
+              label={t("nav.my_requests", language)}
+              active={isActive("/my-requests")}
+              collapsed={collapsed}
+            />
+          </div>
+        )}
+
+        {/* Manager/Super Admin: Requests inbox with pending badge */}
+        {isManagerOrAbove && (
+          <div className="mt-2">
+            <div className="h-px bg-zinc-800 mx-1 my-1.5" />
+            <Link
+              href="/requests"
+              title={collapsed ? `${t("nav.requests", language)}${pendingRequestCount > 0 ? ` (${pendingRequestCount})` : ""}` : undefined}
+              className={`relative flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors ${
+                isActive("/requests")
+                  ? "bg-blue-600 text-white font-medium shadow-sm"
+                  : "text-zinc-400 hover:bg-zinc-800 hover:text-zinc-100"
+              } ${collapsed ? "justify-center px-2" : ""}`}
+            >
+              <InboxIcon />
+              {!collapsed && <span className="truncate flex-1">{t("nav.requests", language)}</span>}
+              {pendingRequestCount > 0 && (
+                collapsed ? (
+                  <span className="absolute top-0.5 right-0.5 flex items-center justify-center min-w-[16px] h-[16px] px-1 text-[10px] font-bold text-white bg-red-600 rounded-full">
+                    {pendingRequestCount}
+                  </span>
+                ) : (
+                  <span className="flex items-center justify-center min-w-[18px] h-[18px] px-1 text-[10px] font-bold text-white bg-red-600 rounded-full">
+                    {pendingRequestCount}
+                  </span>
+                )
+              )}
+            </Link>
+          </div>
+        )}
+
+        {canSeeSettings && (
+          <div className="mt-auto pt-2">
+            {!collapsed && <div className="h-px bg-zinc-800 mx-1 mb-1.5" />}
+            <NavLink
+              href="/settings"
+              Icon={GearIcon}
+              label={t("nav.settings", language)}
+              active={isActive("/settings")}
+              collapsed={collapsed}
+            />
+          </div>
+        )}
       </nav>
 
       {/* Footer: language + user + sign out */}

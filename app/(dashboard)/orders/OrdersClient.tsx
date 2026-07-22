@@ -2,8 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useAuth } from "../../hooks/useAuth";
-import { useLanguage } from "../../contexts/LanguageContext";
-import { t } from "../../lib/i18n";
+import { useTranslation } from "../../hooks/useTranslation";
 import { generateCSV } from "../../lib/export";
 import { ModalShell } from "../../components/ModalShell";
 import { DeleteConfirm } from "../../components/DeleteConfirm";
@@ -25,6 +24,16 @@ const statusStyles: Record<OrderStatus, string> = {
   "Completed":     "bg-emerald-900/50 text-emerald-300 border border-emerald-800",
   "Delayed":       "bg-red-900/50 text-red-300 border border-red-800",
   "Cancelled":     "bg-zinc-800 text-zinc-500 border border-zinc-700",
+};
+
+// Mirrors the UI -> DB enum mapping used inside addOrder() in actions.ts —
+// worker requests must carry the same fields the direct-save path persists.
+const ORDER_STATUS_TO_DB: Record<OrderStatus, string> = {
+  "Pending": "PENDING",
+  "In Production": "IN_PRODUCTION",
+  "Completed": "COMPLETED",
+  "Delayed": "DELAYED",
+  "Cancelled": "CANCELLED",
 };
 
 type BPOption = { id: string; articleCode: string; productName: string; pcsPerCrate: number };
@@ -54,6 +63,14 @@ function OrderForm({
   onChange: <K extends keyof FormState>(k: K, v: FormState[K]) => void;
   onSave: () => void; onClose: () => void;
 }) {
+  const { t } = useTranslation();
+  const statusLabels: Record<OrderStatus, string> = {
+    "Pending": t("status.pending"),
+    "In Production": t("status.in_production"),
+    "Completed": t("status.completed"),
+    "Delayed": t("status.delayed"),
+    "Cancelled": t("status.cancelled"),
+  };
   const hasLines = form.lines.length > 0;
   const isValid = form.customer.trim() && form.dueDate &&
     (hasLines || (form.product.trim() && form.qty > 0));
@@ -77,15 +94,15 @@ function OrderForm({
 
   return (
     <ModalShell
-      title={mode === "add" ? "New Order" : "Edit Order"}
-      subtitle={`Order No: ${orderId}`}
+      title={mode === "add" ? t("form.add_order") : t("form.edit_order")}
+      subtitle={`${t("table.order_no")}: ${orderId}`}
       onClose={onClose}
       maxWidth="max-w-2xl"
       footer={
         <>
-          <button onClick={onClose} className="px-4 py-2 text-sm text-zinc-400 hover:text-zinc-200 transition-colors">Cancel</button>
+          <button onClick={onClose} className="px-4 py-2 text-sm text-zinc-400 hover:text-zinc-200 transition-colors">{t("delete.cancel")}</button>
           <button onClick={onSave} disabled={!isValid} className="px-5 py-2 bg-zinc-700 hover:bg-zinc-600 disabled:opacity-40 disabled:cursor-not-allowed text-white text-sm font-medium rounded-lg transition-colors">
-            {mode === "add" ? "Create Order" : "Save Changes"}
+            {mode === "add" ? t("action.add_order") : t("action.save_changes")}
           </button>
         </>
       }
@@ -94,7 +111,7 @@ function OrderForm({
         {/* Customer + status */}
         <div className="grid grid-cols-2 gap-4">
           <div>
-            <Label>Customer <span className="text-red-500">*</span></Label>
+            <Label>{t("form.label_customer_name")} <span className="text-red-500">{t("form.required_field")}</span></Label>
             {customers.length > 0 ? (
               <select
                 className={inputCls}
@@ -117,20 +134,20 @@ function OrderForm({
             />
           </div>
           <div>
-            <Label>Status</Label>
+            <Label>{t("table.status")}</Label>
             <select className={inputCls} value={form.status} onChange={(e) => onChange("status", e.target.value as OrderStatus)}>
-              {STATUSES.map((s) => <option key={s}>{s}</option>)}
+              {STATUSES.map((s) => <option key={s} value={s}>{statusLabels[s]}</option>)}
             </select>
           </div>
         </div>
 
         <div className="grid grid-cols-2 gap-4">
           <div>
-            <Label>Due Date <span className="text-red-500">*</span></Label>
+            <Label>{t("form.label_due_date")} <span className="text-red-500">{t("form.required_field")}</span></Label>
             <input type="date" className={inputCls} value={form.dueDate} onChange={(e) => onChange("dueDate", e.target.value)} />
           </div>
           <div>
-            <Label>Order Value (€)</Label>
+            <Label>{t("form.label_total_price")} (€)</Label>
             <input type="number" step="any" min="0" className={inputCls} value={form.value || ""} onChange={(e) => onChange("value", parseFloat(e.target.value) || 0)} placeholder="0" />
           </div>
         </div>
@@ -149,11 +166,11 @@ function OrderForm({
             <div className="border border-dashed border-zinc-700 rounded-lg p-3 mb-2">
               <div className="grid grid-cols-3 gap-3">
                 <div className="col-span-2">
-                  <Label>Product (legacy single-line)</Label>
+                  <Label>{t("form.label_product")} (legacy single-line)</Label>
                   <input className={inputCls} value={form.product} onChange={(e) => onChange("product", e.target.value)} placeholder="Product name" />
                 </div>
                 <div>
-                  <Label>Qty</Label>
+                  <Label>{t("table.qty")}</Label>
                   <input type="number" min="1" className={inputCls} value={form.qty || ""} onChange={(e) => onChange("qty", parseInt(e.target.value) || 0)} />
                 </div>
               </div>
@@ -164,7 +181,7 @@ function OrderForm({
             <div key={i} className="flex items-start gap-2 mb-2 p-2.5 bg-zinc-800 rounded-lg">
               <div className="flex-1 grid grid-cols-2 gap-2">
                 <div>
-                  <Label>Article</Label>
+                  <Label>{t("table.article_code")}</Label>
                   <select
                     className="w-full bg-zinc-900 border border-zinc-700 text-zinc-100 text-xs px-2 py-1.5 rounded-lg focus:outline-none focus:border-zinc-500"
                     value={line.bladeProductId}
@@ -205,11 +222,19 @@ function OrderForm({
 // ── Order Detail Panel ────────────────────────────────────────────────────────
 
 function OrderDetailPanel({
-  order, onClose, onEdit, onDelete,
+  order, onClose, onEdit, onDelete, isWorker,
 }: {
   order: Order; onClose: () => void;
-  onEdit: (o: Order) => void; onDelete: (id: string) => void;
+  onEdit: (o: Order) => void; onDelete: (id: string) => void; isWorker: boolean;
 }) {
+  const { t } = useTranslation();
+  const statusLabels: Record<OrderStatus, string> = {
+    "Pending": t("status.pending"),
+    "In Production": t("status.in_production"),
+    "Completed": t("status.completed"),
+    "Delayed": t("status.delayed"),
+    "Cancelled": t("status.cancelled"),
+  };
   const [lineCalcs, setLineCalcs] = useState<OrderLineCalc[]>([]);
   const [totals, setTotals] = useState<OrderTotals | null>(null);
   const [calcLoading, setCalcLoading] = useState(false);
@@ -243,7 +268,7 @@ function OrderDetailPanel({
         <div>
           <span className="text-xs font-mono text-zinc-400">{order.orderNumber}</span>
           <h2 className="text-sm font-semibold text-zinc-100 mt-0.5">{order.customer}</h2>
-          <span className={`inline-block mt-1 text-xs px-2 py-0.5 rounded font-medium ${statusStyles[order.status]}`}>{order.status}</span>
+          <span className={`inline-block mt-1 text-xs px-2 py-0.5 rounded font-medium ${statusStyles[order.status]}`}>{statusLabels[order.status]}</span>
         </div>
         <button onClick={onClose} className="w-7 h-7 rounded-lg bg-zinc-800 hover:bg-zinc-700 flex items-center justify-center text-zinc-500 hover:text-zinc-200 transition-colors shrink-0">
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
@@ -320,10 +345,12 @@ function OrderDetailPanel({
         {calcLoading && <div className="text-xs text-zinc-600">Calculating…</div>}
       </div>
 
-      <div className="flex items-center gap-2 px-5 py-3 border-t border-zinc-800 shrink-0">
-        <button onClick={() => onEdit(order)} className="flex-1 py-2 text-xs font-medium text-zinc-200 bg-zinc-800 hover:bg-zinc-700 rounded-lg transition-colors">Edit</button>
-        <button onClick={() => onDelete(order.id)} className="px-4 py-2 text-xs font-medium text-red-400 hover:text-red-300 bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 rounded-lg transition-colors">Delete</button>
-      </div>
+      {!isWorker && (
+        <div className="flex items-center gap-2 px-5 py-3 border-t border-zinc-800 shrink-0">
+          <button onClick={() => onEdit(order)} className="flex-1 py-2 text-xs font-medium text-zinc-200 bg-zinc-800 hover:bg-zinc-700 rounded-lg transition-colors">Edit</button>
+          <button onClick={() => onDelete(order.id)} className="px-4 py-2 text-xs font-medium text-red-400 hover:text-red-300 bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 rounded-lg transition-colors">Delete</button>
+        </div>
+      )}
     </div>
   );
 }
@@ -334,7 +361,16 @@ export default function OrdersClient({ initialItems, bladeProducts, customers }:
   initialItems: Order[]; bladeProducts: BPOption[]; customers: CustomerOption[];
 }) {
   const { user } = useAuth();
+  const { t, language }             = useTranslation();
+  const statusLabels: Record<OrderStatus, string> = {
+    "Pending": t("status.pending"),
+    "In Production": t("status.in_production"),
+    "Completed": t("status.completed"),
+    "Delayed": t("status.delayed"),
+    "Cancelled": t("status.cancelled"),
+  };
   const isViewer = user?.role === "VIEWER";
+  const isWorker = user?.role === "WORKER";
   const [items, setItems]           = useState<Order[]>(initialItems);
   const [search, setSearch]         = useState("");
   const [statusFilter, setStatus]   = useState<OrderStatus | "All">("All");
@@ -345,7 +381,6 @@ export default function OrdersClient({ initialItems, bladeProducts, customers }:
   const [form, setForm]             = useState<FormState>(EMPTY_FORM);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [deleteId, setDeleteId]     = useState<string | null>(null);
-  const { language }                = useLanguage();
   const { toasts, showToast }       = useToast();
 
   useEffect(() => { setPage(1); }, [search, statusFilter]);
@@ -364,8 +399,8 @@ export default function OrdersClient({ initialItems, bladeProducts, customers }:
 
   const summary = [
     { label: "Total Orders",   value: items.length,                                              sf: "All" as const },
-    { label: "In Production",  value: items.filter((o) => o.status === "In Production").length,  sf: "In Production" as const },
-    { label: "Pending",        value: items.filter((o) => o.status === "Pending").length,        sf: "Pending" as const },
+    { label: statusLabels["In Production"], value: items.filter((o) => o.status === "In Production").length,  sf: "In Production" as const },
+    { label: statusLabels["Pending"],        value: items.filter((o) => o.status === "Pending").length,        sf: "Pending" as const },
     { label: "Order Value",    value: `€${(totalValue/1000).toFixed(0)}k`,                       sf: null },
   ];
 
@@ -390,6 +425,38 @@ export default function OrdersClient({ initialItems, bladeProducts, customers }:
     const hasLines = form.lines.length > 0;
     const linesQtyOk = form.lines.every((l) => l.qty > 0);
     if (hasLines && !linesQtyOk) { showToast("All order lines need a quantity > 0", "error"); return; }
+
+    if (isWorker && formMode === "add") {
+      try {
+        const res = await fetch("/api/requests", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            type: "CREATE_ORDER",
+            payload: {
+              orderNumber: `ORD-${Date.now()}`,
+              customer: form.customer,
+              customerId: form.customerId || null,
+              productName: form.product,
+              productCode: form.productCode,
+              qty: form.qty,
+              status: ORDER_STATUS_TO_DB[form.status],
+              dueDate: new Date(`${form.dueDate}T00:00:00Z`).toISOString(),
+              valueEur: form.value,
+              lines: form.lines.length > 0
+                ? { create: form.lines.map((l) => ({ bladeProductId: l.bladeProductId, articleCode: l.articleCode, productName: l.productName, qty: l.qty })) }
+                : undefined,
+            },
+          }),
+        });
+        if (!res.ok) throw new Error("Request failed");
+        showToast("Request submitted — waiting for manager approval");
+        closeForm();
+      } catch {
+        showToast("Failed to submit request", "error");
+      }
+      return;
+    }
 
     try {
       if (formMode === "add") {
@@ -456,7 +523,7 @@ export default function OrdersClient({ initialItems, bladeProducts, customers }:
           <div className="flex items-center gap-3 px-5 py-3 border-b border-zinc-800 flex-wrap">
             <SearchInput value={search} onChange={setSearch} placeholder="Search order, customer, article…" />
             <select value={statusFilter} onChange={(e) => setStatus(e.target.value as OrderStatus | "All")} className="bg-zinc-800 border border-zinc-700 text-zinc-300 text-xs px-3 py-2 rounded-lg focus:outline-none focus:border-zinc-500">
-              {["All", ...STATUSES].map((s) => <option key={s}>{s}</option>)}
+              {["All", ...STATUSES].map((s) => <option key={s} value={s}>{s === "All" ? t("filter.all") : statusLabels[s as OrderStatus]}</option>)}
             </select>
             <div className="ml-auto flex items-center gap-2">
               <span className="text-xs text-zinc-600">{filtered.length} / {items.length}</span>
@@ -471,8 +538,8 @@ export default function OrdersClient({ initialItems, bladeProducts, customers }:
                   "orders"
                 )}
                 className="px-3 py-2 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-xs font-medium rounded-lg transition-colors"
-              >{t("btn.csv", language)}</button>
-              <AddButton onClick={openAdd} label="New Order" />
+              >{t("btn.csv")}</button>
+              <AddButton onClick={openAdd} label={isWorker ? t("request.request_new_order") : t("action.add_order")} />
             </div>
           </div>
 
@@ -480,19 +547,19 @@ export default function OrdersClient({ initialItems, bladeProducts, customers }:
             <table className="w-full text-sm">
               <thead>
                 <tr className="text-left text-xs text-zinc-600 uppercase tracking-wider border-b border-zinc-800">
-                  <th className="px-5 py-2 font-medium">Order No.</th>
-                  <th className="px-5 py-2 font-medium">Customer</th>
-                  <th className="px-5 py-2 font-medium">Lines / Product</th>
-                  <th className="px-5 py-2 font-medium">Status</th>
-                  <th className="px-5 py-2 font-medium">Due Date</th>
-                  <th className="px-5 py-2 font-medium text-right">Value</th>
+                  <th className="px-5 py-2 font-medium">{t("table.order_no")}</th>
+                  <th className="px-5 py-2 font-medium">{t("table.customer")}</th>
+                  <th className="px-5 py-2 font-medium">Lines / {t("form.label_product")}</th>
+                  <th className="px-5 py-2 font-medium">{t("table.status")}</th>
+                  <th className="px-5 py-2 font-medium">{t("table.due_date")}</th>
+                  <th className="px-5 py-2 font-medium text-right">{t("table.value")}</th>
                   <th className="px-5 py-2 font-medium"></th>
                 </tr>
               </thead>
               <tbody>
                 {filtered.length === 0 ? (
                   <tr><td colSpan={7} className="px-5 py-12 text-center text-xs text-zinc-600">
-                    No orders found.{(search || statusFilter !== "All") && <button onClick={() => { setSearch(""); setStatus("All"); }} className="ml-2 text-zinc-500 hover:text-zinc-300 underline">Clear</button>}
+                    {t("empty.no_orders")}{(search || statusFilter !== "All") && <button onClick={() => { setSearch(""); setStatus("All"); }} className="ml-2 text-zinc-500 hover:text-zinc-300 underline">{t("filter.clear_filters")}</button>}
                   </td></tr>
                 ) : paged.map((o, i) => (
                   <tr
@@ -515,13 +582,17 @@ export default function OrdersClient({ initialItems, bladeProducts, customers }:
                       )}
                     </td>
                     <td className="px-5 py-2.5" onClick={(e) => e.stopPropagation()}>
-                      <InlineStatusSelect value={o.status} options={STATUSES} styles={statusStyles} onChange={(v) => changeStatus(o.id, v)} />
+                      {(isViewer || isWorker) ? (
+                        <span className={`inline-block text-xs px-2 py-0.5 rounded font-medium ${statusStyles[o.status]}`}>{statusLabels[o.status]}</span>
+                      ) : (
+                        <InlineStatusSelect value={o.status} options={STATUSES} styles={statusStyles} onChange={(v) => changeStatus(o.id, v)} labels={statusLabels} />
+                      )}
                     </td>
                     <td className="px-5 py-2.5 text-xs text-zinc-500">{o.dueDate}</td>
                     <td className="px-5 py-2.5 text-xs text-zinc-300 text-right">€{o.value.toLocaleString()}</td>
                     <td className="px-5 py-2.5" onClick={(e) => e.stopPropagation()}>
                       <div className="flex items-center gap-1">
-                        {!isViewer && (
+                        {!isViewer && !isWorker && (
                           <>
                             <EditButton onClick={() => openEdit(o)} />
                             <DeleteButton onClick={() => setDeleteId(o.id)} />
@@ -537,16 +608,16 @@ export default function OrdersClient({ initialItems, bladeProducts, customers }:
 
           <div className="flex items-center justify-between px-5 py-2.5 border-t border-zinc-800">
             <div className="flex items-center gap-2">
-              <span className="text-xs text-zinc-500">Rows:</span>
+              <span className="text-xs text-zinc-500">{t("pagination.rows")}</span>
               <select value={pageSize} onChange={(e) => { setPageSize(Number(e.target.value)); setPage(1); }} className="bg-zinc-800 border border-zinc-700 text-zinc-300 text-xs px-2 py-1 rounded focus:outline-none">
                 {[10, 25, 50].map((n) => <option key={n} value={n}>{n}</option>)}
               </select>
             </div>
-            <span className="text-xs text-zinc-500">{Math.min((page-1)*pageSize+1, filtered.length)}–{Math.min(page*pageSize, filtered.length)} of {filtered.length}</span>
+            <span className="text-xs text-zinc-500">{Math.min((page-1)*pageSize+1, filtered.length)}–{Math.min(page*pageSize, filtered.length)} {t("pagination.of")} {filtered.length}</span>
             <div className="flex items-center gap-1">
-              <button onClick={() => setPage((p) => Math.max(1,p-1))} disabled={page===1} className="text-xs text-zinc-400 hover:text-zinc-200 disabled:opacity-40 px-2 py-1">Previous</button>
+              <button onClick={() => setPage((p) => Math.max(1,p-1))} disabled={page===1} className="text-xs text-zinc-400 hover:text-zinc-200 disabled:opacity-40 px-2 py-1">{t("pagination.previous")}</button>
               <span className="text-xs text-zinc-500">{page}/{totalPages}</span>
-              <button onClick={() => setPage((p) => Math.min(totalPages,p+1))} disabled={page>=totalPages} className="text-xs text-zinc-400 hover:text-zinc-200 disabled:opacity-40 px-2 py-1">Next</button>
+              <button onClick={() => setPage((p) => Math.min(totalPages,p+1))} disabled={page>=totalPages} className="text-xs text-zinc-400 hover:text-zinc-200 disabled:opacity-40 px-2 py-1">{t("pagination.next")}</button>
             </div>
           </div>
         </section>
@@ -559,6 +630,7 @@ export default function OrdersClient({ initialItems, bladeProducts, customers }:
           onClose={() => setSelectedId(null)}
           onEdit={openEdit}
           onDelete={(id) => setDeleteId(id)}
+          isWorker={isWorker}
         />
       )}
 
@@ -576,7 +648,7 @@ export default function OrdersClient({ initialItems, bladeProducts, customers }:
         />
       )}
       {deleteId && deletingItem && (
-        <DeleteConfirm title="Delete Order" itemName={deletingItem.orderNumber} onConfirm={confirmDelete} onClose={() => setDeleteId(null)} />
+        <DeleteConfirm title={t("delete.title_order")} itemName={deletingItem.orderNumber} onConfirm={confirmDelete} onClose={() => setDeleteId(null)} />
       )}
       <ToastList toasts={toasts} />
     </div>

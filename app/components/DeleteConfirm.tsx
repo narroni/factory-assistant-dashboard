@@ -1,5 +1,7 @@
 "use client";
 
+import { useTranslation } from "../hooks/useTranslation";
+
 interface DeleteConfirmProps {
   title?: string;
   itemName: string;
@@ -13,6 +15,7 @@ export function DeleteConfirm({
   onConfirm,
   onClose,
 }: DeleteConfirmProps) {
+  const { t } = useTranslation();
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={onClose} />
@@ -36,22 +39,22 @@ export function DeleteConfirm({
         </div>
         <h3 className="text-base font-semibold text-zinc-100 mb-1">{title}</h3>
         <p className="text-sm text-zinc-400 mb-6 leading-relaxed">
-          Are you sure you want to delete{" "}
-          <span className="text-zinc-200 font-medium">{itemName}</span>? This action cannot be
-          undone.
+          {t("delete.message")}
+          <span className="text-zinc-200 font-medium">{itemName}</span>
+          {t("delete.message_end")}
         </p>
         <div className="flex items-center gap-3">
           <button
             onClick={onClose}
             className="flex-1 py-2 text-sm text-zinc-400 hover:text-zinc-200 bg-zinc-800 hover:bg-zinc-700 rounded-lg transition-colors"
           >
-            Cancel
+            {t("delete.cancel")}
           </button>
           <button
             onClick={onConfirm}
             className="flex-1 py-2 text-sm font-medium text-white bg-red-600 hover:bg-red-500 rounded-lg transition-colors"
           >
-            Delete
+            {t("delete.confirm")}
           </button>
         </div>
       </div>

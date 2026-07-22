@@ -1,6 +1,7 @@
 "use client";
 
 import { Fragment, useState } from "react";
+import { useTranslation } from "../../hooks/useTranslation";
 import type { ChatSummary } from "./actions";
 
 type ChatDetail = {
@@ -20,6 +21,7 @@ type ChatDetail = {
 const PAGE_SIZE = 20;
 
 export default function AIHistoryClient({ initialChats }: { initialChats: ChatSummary[] }) {
+  const { t } = useTranslation();
   const [allChats] = useState<ChatSummary[]>(initialChats);
   const [page, setPage] = useState(0);
   const [expanded, setExpanded] = useState<string | null>(null);
@@ -54,17 +56,17 @@ export default function AIHistoryClient({ initialChats }: { initialChats: ChatSu
 
       <div className="bg-zinc-900 rounded-xl border border-zinc-800 overflow-hidden">
         {chats.length === 0 ? (
-          <div className="px-6 py-12 text-center text-sm text-zinc-500">No conversations yet.</div>
+          <div className="px-6 py-12 text-center text-sm text-zinc-500">{t("ai_history.empty_no_history")}</div>
         ) : (
           <>
             <table className="w-full text-sm">
               <thead>
                 <tr className="text-left text-xs text-zinc-500 uppercase tracking-wider border-b border-zinc-800 bg-zinc-800/50">
-                  <th className="px-5 py-3 font-medium">Chat Title</th>
-                  <th className="px-5 py-3 font-medium">User</th>
+                  <th className="px-5 py-3 font-medium">{t("ai_history.table_id")}</th>
+                  <th className="px-5 py-3 font-medium">{t("audit_logs.table_user")}</th>
                   <th className="px-5 py-3 font-medium">Messages</th>
-                  <th className="px-5 py-3 font-medium">Last Activity</th>
-                  <th className="px-5 py-3 font-medium">Created</th>
+                  <th className="px-5 py-3 font-medium">{t("ai_history.table_completed")}</th>
+                  <th className="px-5 py-3 font-medium">{t("ai_history.table_started")}</th>
                 </tr>
               </thead>
               <tbody>
@@ -124,17 +126,17 @@ export default function AIHistoryClient({ initialChats }: { initialChats: ChatSu
             {totalPages > 1 && (
               <div className="flex items-center justify-between px-5 py-3 border-t border-zinc-800">
                 <span className="text-xs text-zinc-500">
-                  Showing {page * PAGE_SIZE + 1}–{Math.min((page + 1) * PAGE_SIZE, total)} of {total}
+                  {t("pagination.showing")} {page * PAGE_SIZE + 1}–{Math.min((page + 1) * PAGE_SIZE, total)} {t("pagination.of")} {total}
                 </span>
                 <div className="flex items-center gap-2">
                   <button onClick={() => setPage((p) => Math.max(0, p - 1))} disabled={page === 0}
                     className="text-xs text-zinc-400 hover:text-zinc-200 disabled:opacity-40 px-2 py-1 transition-colors">
-                    Prev
+                    {t("pagination.previous")}
                   </button>
                   <span className="text-xs text-zinc-600">{page + 1} / {totalPages}</span>
                   <button onClick={() => setPage((p) => Math.min(totalPages - 1, p + 1))} disabled={page >= totalPages - 1}
                     className="text-xs text-zinc-400 hover:text-zinc-200 disabled:opacity-40 px-2 py-1 transition-colors">
-                    Next
+                    {t("pagination.next")}
                   </button>
                 </div>
               </div>

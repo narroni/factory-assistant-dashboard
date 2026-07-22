@@ -10,7 +10,8 @@ datasource db {
 // ── Enums ─────────────────────────────────────────────────────────────────────
 
 enum UserRole {
-  ADMIN
+  SUPER_ADMIN
+  MANAGER
   WORKER
   VIEWER
 }
@@ -57,6 +58,20 @@ enum AuditAction {
   CREATE
   UPDATE
   DELETE
+  APPROVE_REQUEST
+  REJECT_REQUEST
+}
+
+enum RequestType {
+  CREATE_PRODUCT
+  CREATE_MATERIAL
+  CREATE_ORDER
+}
+
+enum RequestStatus {
+  PENDING
+  APPROVED
+  REJECTED
 }
 
 // ── User ──────────────────────────────────────────────────────────────────────
@@ -79,6 +94,8 @@ model User {
   assistantChats      AssistantChat[]
   factoryKnowledge    FactoryKnowledge[]
   aiRules             AIRule[]
+  requestsMade        WorkerRequest[] @relation("RequestedBy")
+  requestsReviewed    WorkerRequest[] @relation("ReviewedBy")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -381,6 +398,8 @@ model AIConfig {
   responseStyle     String  @default("concise") // "concise" | "detailed"
   defaultLanguage   String  @default("en")
   allowedActions    Json    @default("[]") // array of action types
+  focusMode         String?
+  companyKnowledge  String? @db.Text
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -408,6 +427,28 @@ model FactoryKnowledge {
   @@index([uploadedBy])
   @@index([createdAt])
   @@map("factory_knowledge")
+}
+
+// ── Worker Request ────────────────────────────────────────────────────────────
+
+model WorkerRequest {
+  id              String        @id @default(cuid())
+  type            RequestType
+  status          RequestStatus @default(PENDING)
+  payload         Json
+  requestedById   String
+  requestedBy     User          @relation("RequestedBy", fields: [requestedById], references: [id])
+  requestedAt     DateTime      @default(now())
+  reviewedById    String?
+  reviewedBy      User?         @relation("ReviewedBy", fields: [reviewedById], references: [id])
+  reviewedAt      DateTime?
+  reviewerComment String?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  @@index([status])
+  @@index([requestedById])
+  @@map("worker_requests")
 }
 
 // ── AuditLog ──────────────────────────────────────────────────────────────────

@@ -17,7 +17,7 @@ export async function getOutputs(page: number, pageSize: number): Promise<{ outp
   const user = await getSessionUser();
   if (!user) return { outputs: [], total: 0 };
 
-  const where = user.role === "ADMIN" ? {} : { request: { createdByUserId: user.id } };
+  const where = user.role === "SUPER_ADMIN" || user.role === "MANAGER" ? {} : { request: { createdByUserId: user.id } };
 
   const [total, rows] = await Promise.all([
     prisma.executedAction.count({ where }),

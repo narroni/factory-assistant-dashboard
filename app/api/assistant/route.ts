@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSessionUser } from "../../lib/session";
 import { loadFactoryContext } from "../../lib/factory-context";
-import { runCopilot, checkOllamaHealth, type ConversationMessage, type ActionProposal } from "../../lib/ollama";
+import { streamCopilot, parseAssistantResponse, ACTION_SEPARATOR, checkOllamaHealth, type ConversationMessage, type ActionProposal } from "../../lib/ollama";
 import { prisma } from "../../lib/prisma";
-import { calculatePackaging, formatPackagingResultText } from "../../lib/packaging-calculator";
+import { calculatePackaging, formatPackagingResultText, calculateMaxCapacity, formatMaxCapacityResultText, optimizeContainerMix, formatOptimizationResultText, analyzeContainerMix, formatMixAnalysisText } from "../../lib/packaging-calculator";
 import { normalizeActionType, isReadOnlyQuestion } from "../../lib/action-types";
 import { findRelevantChunks, formatRelevantChunks } from "../../lib/knowledge-search";
 
@@ -59,10 +59,21 @@ function shortCircuit(question: string, language: string): string | null {
 
 // ── Packaging context helpers ─────────────────────────────────────────────────
 
-const PACKAGING_KEYWORDS = /\b(ship|container|crate|crating|tower|pallet|20ft|40ft|packaging|pack|pieces|pcs|payload|volume|footprint|cargo|load|fit)\b/i;
+const PACKAGING_KEYWORDS = /pack|crate|tower|container|shipment|shipping|ship|fit|load|capacity|weight|volume|footprint|pieces|pcs|mix|optim|split|fill|how many|how much/i;
 
-// Try to extract (articleCode, quantity, containerType) from a free-text question
-function detectPackagingQuery(question: string): { articleCode: string | null; qty: number | null; containerName: string | null } {
+// Build a regex matching any of the given (real, DB-backed) article codes
+function buildArticleCodePattern(codes: string[], flags: string): RegExp | null {
+  if (codes.length === 0) return null;
+  const escapedCodes = codes.map((c) => c.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"));
+  return new RegExp(escapedCodes.join("|"), flags);
+}
+
+// Phrases that indicate the question is asking FOR a quantity ("how many fit"), not stating one
+const MAX_CAPACITY_KEYWORDS = /how many|how much|maximum|\bmax\b|fit in|can fit|fill a|capacity/i;
+
+// Try to extract (articleCode, quantity, containerType) from a free-text question.
+// qty is -1 as a sentinel meaning "calculate maximum capacity" (no specific quantity given, e.g. "how many fit").
+function detectPackagingQuery(question: string, codes: string[]): { articleCode: string | null; qty: number | null; containerName: string | null } {
   // Container type
   let containerName: string | null = null;
   if (/\b40\s*ft\b|\b40\s*foot\b|\b40-foot\b/i.test(question)) containerName = "40ft";
@@ -77,23 +88,110 @@ function detectPackagingQuery(question: string): { articleCode: string | null; q
     qty = parseInt(qtyMatch[1].replace(/[,\s]/g, ""), 10) || null;
   }
 
-  // Article code: known codes or pattern like RD..., RR..., RL...
+  // Article code: matched dynamically against the real codes in the database
   let articleCode: string | null = null;
-  const codeMatch = question.match(/\b(RD001\s+EURO\s+PALET|RDG500\/1[,.]25|RDG600\/1[,.]25|RDL002|RDL011\s+LARSSON|RDL011\/1[,.]4|RDL011\/1[,.]6|RLG500\/1[,.]6s|RDL400[^,\s"]+|RR021\/150|RR030|RR031)\b/i);
-  if (codeMatch) articleCode = codeMatch[1].trim();
+  const codePattern = buildArticleCodePattern(codes, "i");
+  const codeMatch = codePattern ? question.match(codePattern) : null;
+  if (codeMatch) articleCode = codeMatch[0].trim();
+
+  // "How many X fit in a container?" — asking for the quantity, not stating one
+  if (qty === null && articleCode && MAX_CAPACITY_KEYWORDS.test(question)) {
+    qty = -1;
+  }
 
   return { articleCode, qty, containerName };
 }
 
-async function buildPackagingContext(question: string): Promise<string> {
-  if (!PACKAGING_KEYWORDS.test(question)) return "";
+// Pull a quantity (supports "100k", "100,000 pieces", "50000 of", "CODE: 100k") out of a text window
+function extractQuantityNear(window: string): number | null {
+  const kMatch = window.match(/\b(\d+(?:\.\d+)?)\s*k\b/i);
+  if (kMatch) return Math.round(parseFloat(kMatch[1]) * 1000);
+
+  const pcsMatch = window.match(/\b(\d[\d,\s]*\d|\d+)\s*(?:pieces?|pcs?|units?)\b/i);
+  if (pcsMatch) return parseInt(pcsMatch[1].replace(/[,\s]/g, ""), 10) || null;
+
+  const ofMatch = window.match(/\b([\d,]+)\s+of\b/i) ?? window.match(/\bof\s+([\d,]+)\b/i);
+  if (ofMatch) return parseInt(ofMatch[1].replace(/[,\s]/g, ""), 10) || null;
+
+  const colonMatch = window.match(/:\s*([\d,]+)\b/);
+  if (colonMatch) return parseInt(colonMatch[1].replace(/[,\s]/g, ""), 10) || null;
+
+  const genericMatch = window.match(/\b(\d{4,}|\d{1,3}(?:,\d{3})+)\b/);
+  if (genericMatch) return parseInt(genericMatch[1].replace(/[,\s]/g, ""), 10) || null;
+
+  return null;
+}
+
+// Signals a multi-product "mix" question even when no quantities are stated
+const MIX_KEYWORDS = /\bmix\b|\bcombine[ds]?\b|\btogether\b|\bboth\b|\bsplit\b|\bfill\b|\band\b/i;
+
+// Detect a multi-product question, e.g.
+// "100000 pieces of CF-55 and 50000 of CF-44"  (explicit quantities)
+// "Can I mix CF-55 and CF-44 in one container?" (no quantities → optimal split)
+// Returns null unless 2+ distinct article codes are present. When 2+ codes are found but no
+// quantities are stated, each product's quantity is set to -1 (sentinel: "calculate optimal split").
+function detectOptimizationQuery(question: string, codes: string[]): { products: Array<{ articleCode: string; quantity: number }>; containerName?: string } | null {
+  let containerName: string | undefined;
+  if (/\b40\s*ft\b|\b40\s*foot\b|\b40-foot\b/i.test(question)) containerName = "40ft";
+  else if (/\b20\s*ft\b|\b20\s*foot\b|\b20-foot\b/i.test(question)) containerName = "20ft";
+
+  const codePattern = buildArticleCodePattern(codes, "gi");
+  if (!codePattern) return null;
+  const matches = [...question.matchAll(codePattern)];
+  if (matches.length < 2) return null;
+
+  // Collect each unique article code (in order) with any quantity stated near it
+  const detected: Array<{ articleCode: string; quantity: number | null }> = [];
+  const seen = new Set<string>();
+
+  for (const m of matches) {
+    const code = m[0].trim();
+    const key = code.toUpperCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+
+    const start = m.index ?? 0;
+    const windowStart = Math.max(0, start - 40);
+    const windowEnd = Math.min(question.length, start + code.length + 40);
+    const window = question.slice(windowStart, windowEnd);
+
+    detected.push({ articleCode: code, quantity: extractQuantityNear(window) });
+  }
+
+  if (detected.length < 2) return null;
+
+  // Explicit-quantity path: 2+ products each with a stated quantity
+  const withQty = detected.filter((d) => d.quantity !== null && d.quantity > 0);
+  if (withQty.length >= 2) {
+    return { products: withQty.map((d) => ({ articleCode: d.articleCode, quantity: d.quantity as number })), containerName };
+  }
+
+  // Optimal-split path: 2+ codes and a mixing intent, but no explicit quantities.
+  // quantity: -1 signals "calculate an even split across the products" downstream.
+  if (MIX_KEYWORDS.test(question)) {
+    return { products: detected.map((d) => ({ articleCode: d.articleCode, quantity: -1 })), containerName };
+  }
+
+  return null;
+}
+
+async function buildPackagingContext(question: string): Promise<{ text: string; hasPackagingResult: boolean }> {
+  if (!PACKAGING_KEYWORDS.test(question)) return { text: "", hasPackagingResult: false };
+
+  const allSpecs = await prisma.bladeProductSpec.findMany({ select: { articleCode: true } });
+  const allCodes = allSpecs.map((s) => s.articleCode);
 
   const [products, containers] = await Promise.all([
     prisma.bladeProductSpec.findMany({ include: { crateType: true }, orderBy: { articleCode: "asc" } }),
     prisma.containerType.findMany({ orderBy: { name: "asc" } }),
   ]);
 
-  if (products.length === 0) return "";
+  if (products.length === 0) return { text: "", hasPackagingResult: false };
+
+  // Set true only when one of [MAX CAPACITY RESULT] / [CONTAINER OPTIMIZATION RESULT] /
+  // [CONTAINER MIX ANALYSIS] was actually injected — signals the caller to strip raw
+  // product specs from ctx so the AI can't recalculate over the deterministic result.
+  let hasPackagingResult = false;
 
   const catalog = products.map((p) =>
     `  ${p.articleCode}: ${p.productName}, ${p.lengthMm}×${p.widthMm}×${p.thicknessMm}mm, ` +
@@ -106,15 +204,60 @@ async function buildPackagingContext(question: string): Promise<string> {
 
   let calcBlock = "";
 
-  // ── Single-product calculation ─────────────────────────────────────────────
-  const { articleCode, qty, containerName } = detectPackagingQuery(question);
-  if (articleCode && qty && qty > 0 && containerName) {
-    try {
-      const result = await calculatePackaging({ articleCode, qty, containerName });
-      calcBlock = `\n\n[DETERMINISTIC CALCULATION RESULT — use these exact numbers]\n${formatPackagingResultText(result)}`;
-      console.info(`[assistant] packaging calc: ${articleCode} × ${qty} → ${containerName}: ${result.overallFits ? "FITS" : "NO FIT"}`);
-    } catch (e) {
-      calcBlock = `\n\n[PACKAGING NOTE: Could not compute for "${articleCode}" × ${qty} → ${containerName}: ${e instanceof Error ? e.message : "unknown error"}]`;
+  // Multi-product and single-product detection are mutually exclusive: a multi-product
+  // question injects only the optimization block, never also the single-product block.
+  const multiResult = detectOptimizationQuery(question, allCodes);
+
+  if (multiResult && multiResult.products.length >= 2) {
+    const isSplit = multiResult.products.every((p) => p.quantity === -1);
+    if (isSplit) {
+      // ── Multi-product mix analysis (no quantities given → optimal split) ─────
+      try {
+        const mix = await analyzeContainerMix({
+          articleCodes: multiResult.products.map((p) => p.articleCode),
+          containerName: multiResult.containerName,
+        });
+        calcBlock += `\n\n[CONTAINER MIX ANALYSIS — use these exact numbers]\n${formatMixAnalysisText(mix)}`;
+        hasPackagingResult = true;
+        console.info(`[assistant] mix analysis: ${multiResult.products.map((p) => p.articleCode).join(", ")} → ${mix.containerName}: ${mix.combined.fits ? "FITS" : "NO FIT"}`);
+      } catch (e) {
+        calcBlock += `\n\n[CONTAINER MIX NOTE: Could not compute — ${e instanceof Error ? e.message : "unknown error"}]`;
+      }
+    } else {
+      // ── Multi-product container optimization (explicit quantities) ───────────
+      try {
+        const optResult = await optimizeContainerMix(multiResult);
+        calcBlock += `\n\n[CONTAINER OPTIMIZATION RESULT — use these exact numbers]\n${formatOptimizationResultText(optResult)}`;
+        hasPackagingResult = true;
+        console.info(`[assistant] optimization calc: ${multiResult.products.map((p) => p.articleCode).join(", ")} → ${optResult.containerType}: ${optResult.fits ? "FITS" : "NO FIT"}`);
+      } catch (e) {
+        calcBlock += `\n\n[CONTAINER OPTIMIZATION NOTE: Could not compute — ${e instanceof Error ? e.message : "unknown error"}]`;
+      }
+    }
+  } else {
+    // ── Single-product calculation ───────────────────────────────────────────
+    const { articleCode, qty, containerName } = detectPackagingQuery(question, allCodes);
+    if (articleCode && qty === -1) {
+      // "How many fit" — no specific quantity given, calculate maximum capacity instead
+      const resolvedContainerName = containerName ?? "40ft";
+      try {
+        const result = await calculateMaxCapacity({ articleCode, containerName: resolvedContainerName });
+        calcBlock = `\n\n[MAX CAPACITY RESULT — use these exact numbers]\n${formatMaxCapacityResultText(result)}`;
+        hasPackagingResult = true;
+        console.info(`[assistant] max capacity calc: ${articleCode} → ${resolvedContainerName}: ${result.maxPieces} pcs max`);
+      } catch (e) {
+        calcBlock = `\n\n[PACKAGING NOTE: Could not compute max capacity for "${articleCode}" → ${resolvedContainerName}: ${e instanceof Error ? e.message : "unknown error"}]`;
+      }
+    } else if (articleCode && qty && qty > 0) {
+      const resolvedContainerName = containerName ?? "40ft";
+      try {
+        const result = await calculatePackaging({ articleCode, qty, containerName: resolvedContainerName });
+        calcBlock = `\n\n[PACKAGING RESULT — use these exact numbers]\n${formatPackagingResultText(result)}`;
+        hasPackagingResult = true;
+        console.info(`[assistant] packaging calc: ${articleCode} × ${qty} → ${resolvedContainerName}: ${result.overallFits ? "FITS" : "NO FIT"}`);
+      } catch (e) {
+        calcBlock = `\n\n[PACKAGING NOTE: Could not compute for "${articleCode}" × ${qty} → ${resolvedContainerName}: ${e instanceof Error ? e.message : "unknown error"}]`;
+      }
     }
   }
 
@@ -152,7 +295,8 @@ async function buildPackagingContext(question: string): Promise<string> {
     }
   }
 
-  return `[PACKAGING CATALOG — Blade Product Specs]\n${catalog}\n\n[CONTAINERS]\n${containerSummary}` + calcBlock;
+  const text = `[PACKAGING CATALOG — Blade Product Specs]\n${catalog}\n\n[CONTAINERS]\n${containerSummary}` + calcBlock;
+  return { text, hasPackagingResult };
 }
 
 async function computeOrderTotals(lines: { articleCode: string; qty: number }[], containerName: string) {
@@ -214,6 +358,37 @@ function formatOrderTotals(orderNumber: string, r20: Awaited<ReturnType<typeof c
   ].join("\n");
 }
 
+// ── SSE streaming helpers ───────────────────────────────────────────────────────
+
+const SSE_HEADERS = {
+  "Content-Type": "text/event-stream; charset=utf-8",
+  "Cache-Control": "no-cache, no-transform",
+  Connection: "keep-alive",
+  "X-Accel-Buffering": "no", // disable proxy buffering so tokens flush immediately
+} as const;
+
+const sseTextEncoder = new TextEncoder();
+
+// Encode one SSE `data:` frame. Strings are sent verbatim (e.g. "[DONE]"); objects are JSON.
+function sseEvent(data: unknown): Uint8Array {
+  const payload = typeof data === "string" ? data : JSON.stringify(data);
+  return sseTextEncoder.encode(`data: ${payload}\n\n`);
+}
+
+// How much of the accumulated raw text is safe to show the user as prose.
+// Everything before the ---ACTIONS--- marker is visible; the marker and the JSON
+// after it are never shown. A trailing partial-marker prefix is held back so the
+// user never briefly sees "---ACTI…" before the token that completes it arrives.
+function visibleSafeLength(raw: string): number {
+  const sepIdx = raw.indexOf(ACTION_SEPARATOR);
+  if (sepIdx !== -1) return sepIdx;
+  const maxK = Math.min(raw.length, ACTION_SEPARATOR.length - 1);
+  for (let k = maxK; k > 0; k--) {
+    if (raw.slice(raw.length - k) === ACTION_SEPARATOR.slice(0, k)) return raw.length - k;
+  }
+  return raw.length;
+}
+
 // ── POST /api/assistant ───────────────────────────────────────────────────────
 
 export async function POST(req: NextRequest) {
@@ -238,7 +413,7 @@ export async function POST(req: NextRequest) {
   let chatId = body.chatId;
   if (chatId) {
     const existing = await prisma.assistantChat.findUnique({ where: { id: chatId } });
-    if (!existing || (user.role !== "ADMIN" && existing.userId !== user.id)) {
+    if (!existing || (user.role !== "SUPER_ADMIN" && user.role !== "MANAGER" && existing.userId !== user.id)) {
       chatId = undefined; // invalid → fall back to no persistence
     }
   }
@@ -278,16 +453,27 @@ export async function POST(req: NextRequest) {
   }
 
   // ── Short-circuit conversational inputs ────────────────────────────────────
+  // Streamed as SSE too (one token + done event) so the client has a single response shape.
   const quick = shortCircuit(question, language);
   if (quick) {
     if (chatId) {
       await persistAssistantMessage({ chatId, content: quick, ollamaUsed: false, status: "COMPLETED" });
     }
     await logInteraction({ userId: user.id, prompt: question, response: quick, ollamaUsed: false, proposals: [] });
-    return NextResponse.json({
-      question, answer: quick, ollamaUsed: false,
-      proposals: [], savedRequestIds: [], chatId, respondedAt,
-    } satisfies AssistantResponse);
+
+    const quickStream = new ReadableStream({
+      start(controller) {
+        controller.enqueue(sseEvent({ token: quick }));
+        controller.enqueue(sseEvent({
+          done: true, hasActions: false,
+          answer: quick, proposals: [], savedRequestIds: [],
+          chatId, respondedAt, ollamaUsed: false, messageId: null,
+        }));
+        controller.enqueue(sseEvent("[DONE]"));
+        controller.close();
+      },
+    });
+    return new Response(quickStream, { headers: SSE_HEADERS });
   }
 
   // ── Create PENDING assistant message (before generation) ────────────────────
@@ -314,8 +500,9 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Failed to load factory data" }, { status: 500 });
   }
 
+  const totalMaterials = ctx.inventory.inStock + ctx.inventory.lowStock + ctx.inventory.outOfStock;
   const fallback =
-    `Based on current data: ${ctx.inventory.totalMaterials} materials (${ctx.inventory.inStock} in stock, ` +
+    `Based on current data: ${totalMaterials} materials (${ctx.inventory.inStock} in stock, ` +
     `${ctx.inventory.lowStock} low, ${ctx.inventory.outOfStock} out of stock). ` +
     `${ctx.orders.pending + ctx.orders.inProduction} open orders. ` +
     `${ctx.suppliers.active} active suppliers.`;
@@ -368,8 +555,11 @@ export async function POST(req: NextRequest) {
 
   // ── Packaging calculator context ───────────────────────────────────────────
   let packagingContext = "";
+  let hasPackagingResult = false;
   try {
-    packagingContext = await buildPackagingContext(question);
+    const result = await buildPackagingContext(question);
+    packagingContext = result.text;
+    hasPackagingResult = result.hasPackagingResult;
   } catch (err) {
     // Non-fatal: packaging context injection is best-effort
     console.warn("[assistant] packaging context failed:", err);
@@ -380,114 +570,199 @@ export async function POST(req: NextRequest) {
       : packagingContext;
   }
 
+  // A deterministic packaging result is in the context — strip the raw product specs
+  // from ctx so the AI can't see dimensions/weights and recalculate its own (wrong) numbers.
+  if (hasPackagingResult) {
+    (ctx as unknown as { products: unknown }).products =
+      "Product packaging data omitted — see [MAX CAPACITY RESULT] / [CONTAINER OPTIMIZATION RESULT] above for accurate calculations.";
+  }
+
   // ── Call Ollama ────────────────────────────────────────────────────────────
-  // Inject rules into custom system prompt
-  const systemPromptWithRules = config?.systemPrompt
-    ? rulesText
-      ? `${rulesText}\n\n${config.systemPrompt}`
-      : config.systemPrompt
-    : rulesText
-      ? rulesText
+  // Build system prompt with company knowledge, focus mode, rules, and custom instructions
+  let systemPromptWithRules: string | undefined;
+  const promptParts: string[] = [];
+
+  // Add company knowledge first (near top, right after company identity)
+  if (config?.companyKnowledge?.trim()) {
+    promptParts.push(`## Company Knowledge\n${config.companyKnowledge}`);
+  }
+
+  // Add focus mode if present and not "general"
+  if (config?.focusMode && config.focusMode !== "general") {
+    if (config.focusMode === "production") {
+      promptParts.push("Current focus mode: Production & Manufacturing. Prioritize data related to production details in your responses.");
+    } else if (config.focusMode === "logistics") {
+      promptParts.push("Current focus mode: Orders & Logistics. Prioritize data related to orders and shipping in your responses.");
+    }
+  }
+
+  // Add admin rules
+  if (rulesText) {
+    promptParts.push(rulesText);
+  }
+
+  // Add custom system prompt
+  if (config?.systemPrompt) {
+    promptParts.push(config.systemPrompt);
+  }
+
+  systemPromptWithRules = promptParts.length > 0 ? promptParts.join("\n\n") : undefined;
+
+  const copilotConfig = config
+    ? {
+        assistantName: config.assistantName,
+        systemPrompt: systemPromptWithRules,
+        responseStyle: config.responseStyle,
+        allowedActions: (config.allowedActions as string[]) ?? [],
+      }
+    : systemPromptWithRules
+      ? { systemPrompt: systemPromptWithRules }
       : undefined;
 
-  const result = await runCopilot({
-    question,
-    history,
-    ctx,
-    fallback,
-    language,
-    config: config
-      ? {
-          assistantName: config.assistantName,
-          systemPrompt: systemPromptWithRules,
-          responseStyle: config.responseStyle,
-          allowedActions: (config.allowedActions as string[]) ?? [],
+  // ── Stream the response via SSE ─────────────────────────────────────────────
+  // Tokens are emitted as they arrive; once the LLM stream closes we run the
+  // (unchanged) proposal gating / validation / DB-save logic on the accumulated
+  // raw text, then emit a final metadata event and close.
+  const sseStream = new ReadableStream({
+    async start(controller) {
+      let rawAccumulated = "";    // full model output, incl. any ---ACTIONS--- block
+      let emittedVisibleLen = 0;  // chars of visible prose already sent to the client
+      let usedFallback = false;
+      let fallbackReason: string | undefined;
+
+      // 1) Stream tokens from Ollama, forwarding only the visible prose.
+      try {
+        const tokenStream = await streamCopilot({
+          question, history, ctx, language,
+          config: copilotConfig,
+          knowledge: knowledgeText || undefined,
+        });
+        const reader = tokenStream.getReader();
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          rawAccumulated += value;
+          const safeEnd = visibleSafeLength(rawAccumulated);
+          if (safeEnd > emittedVisibleLen) {
+            controller.enqueue(sseEvent({ token: rawAccumulated.slice(emittedVisibleLen, safeEnd) }));
+            emittedVisibleLen = safeEnd;
+          }
         }
-      : systemPromptWithRules
-        ? { systemPrompt: systemPromptWithRules }
-        : undefined,
-    knowledge: knowledgeText || undefined,
+      } catch (err) {
+        // Connection failure (no tokens) or a mid-stream error. Keep whatever partial
+        // text we received; only substitute the deterministic fallback if we got nothing.
+        fallbackReason = err instanceof Error ? err.message : "stream error";
+        console.warn(`[assistant] stream failed — ${fallbackReason}`);
+      }
+
+      if (rawAccumulated.trim().length === 0) {
+        usedFallback = true;
+        rawAccumulated = fallback;
+        controller.enqueue(sseEvent({ token: fallback }));
+        emittedVisibleLen = fallback.length;
+      }
+
+      const ollamaUsed = !usedFallback;
+
+      // 2) Finalize: parse the accumulated raw text exactly as the non-streaming path did.
+      const { answer, proposals: parsedProposals } = parseAssistantResponse(rawAccumulated);
+      let proposals: ActionProposal[] = ollamaUsed ? parsedProposals : [];
+
+      // Gate: read-only/calculation questions must never create proposals
+      if (isReadOnlyQuestion(question)) {
+        if (proposals.length > 0) {
+          console.info(`[assistant] stripping ${proposals.length} proposal(s) — read-only question`);
+        }
+        proposals = [];
+      }
+
+      // Normalize and validate action types
+      const validatedProposals: ActionProposal[] = [];
+      for (const p of proposals) {
+        const normalized = normalizeActionType(p.actionType);
+        if (!normalized) {
+          console.warn(`[assistant] dropping proposal with unknown actionType: "${p.actionType}"`);
+          continue;
+        }
+        validatedProposals.push({ ...p, actionType: normalized });
+      }
+      proposals = validatedProposals;
+
+      // 3) Persist proposals + message + log. Wrapped so a DB failure never prevents
+      //    us from closing the stream cleanly for the client.
+      let savedRequestIds: string[] = [];
+      try {
+        if (proposals.length > 0 && (user.role === "SUPER_ADMIN" || user.role === "MANAGER" || user.role === "WORKER")) {
+          for (const p of proposals) {
+            try {
+              const saved = await prisma.aIActionRequest.create({
+                data: {
+                  createdByUserId: user.id,
+                  actionType: p.actionType,
+                  payload: p.payload as Record<string, string | number | boolean | null>,
+                  reasoning: p.reasoning,
+                  status: "PENDING",
+                },
+              });
+              savedRequestIds.push(saved.id);
+            } catch (err) {
+              console.error("[assistant] failed to save action request:", err);
+            }
+          }
+        }
+
+        if (chatId && assistantMessageId) {
+          await prisma.assistantMessage.update({
+            where: { id: assistantMessageId },
+            data: {
+              content: answer,
+              ollamaUsed,
+              proposals: proposals.length > 0
+                ? (proposals as unknown as import("@prisma/client").Prisma.InputJsonValue)
+                : undefined,
+              savedRequestIds: savedRequestIds.length > 0
+                ? (savedRequestIds as unknown as import("@prisma/client").Prisma.InputJsonValue)
+                : undefined,
+              status: "COMPLETED",
+            },
+          });
+          await prisma.assistantChat.update({ where: { id: chatId }, data: {} });
+        } else if (chatId && !assistantMessageId) {
+          await persistAssistantMessage({ chatId, content: answer, ollamaUsed, proposals, savedRequestIds, status: "COMPLETED" });
+        }
+
+        await logInteraction({ userId: user.id, prompt: question, response: answer, ollamaUsed, proposals });
+      } catch (err) {
+        console.error("[assistant] post-stream persistence failed:", err);
+      }
+
+      if (usedFallback) console.warn(`[assistant] ollama fallback — ${fallbackReason ?? "unknown"}`);
+
+      // 4) Final metadata event, then the [DONE] sentinel.
+      //    If the client disconnected/aborted mid-stream the controller is already
+      //    closed — enqueuing/closing would throw, so guard the whole finalize block.
+      try {
+        controller.enqueue(sseEvent({
+          done: true,
+          hasActions: proposals.length > 0,
+          answer,
+          proposals,
+          savedRequestIds,
+          chatId,
+          respondedAt,
+          ollamaUsed,
+          fallbackReason: usedFallback ? fallbackReason : undefined,
+          messageId: assistantMessageId,
+        }));
+        controller.enqueue(sseEvent("[DONE]"));
+        controller.close();
+      } catch {
+        // client disconnected before finalization — safe to ignore
+      }
+    },
   });
 
-  const answer = result.ok ? result.answer : result.fallback;
-  let proposals: ActionProposal[] = result.ok ? result.proposals : [];
-
-  // ── Gate: read-only/calculation questions must never create proposals ──────
-  if (isReadOnlyQuestion(question)) {
-    if (proposals.length > 0) {
-      console.info(`[assistant] stripping ${proposals.length} proposal(s) — read-only question`);
-    }
-    proposals = [];
-  }
-
-  // ── Normalize and validate action types ───────────────────────────────────
-  const validatedProposals: ActionProposal[] = [];
-  for (const p of proposals) {
-    const normalized = normalizeActionType(p.actionType);
-    if (!normalized) {
-      console.warn(`[assistant] dropping proposal with unknown actionType: "${p.actionType}"`);
-      continue;
-    }
-    validatedProposals.push({ ...p, actionType: normalized });
-  }
-  proposals = validatedProposals;
-
-  // ── Persist action proposals ───────────────────────────────────────────────
-  let savedRequestIds: string[] = [];
-  if (proposals.length > 0 && (user.role === "ADMIN" || user.role === "WORKER")) {
-    for (const p of proposals) {
-      try {
-        const saved = await prisma.aIActionRequest.create({
-          data: {
-            createdByUserId: user.id,
-            actionType: p.actionType,
-            payload: p.payload as Record<string, string | number | boolean | null>,
-            reasoning: p.reasoning,
-            status: "PENDING",
-          },
-        });
-        savedRequestIds.push(saved.id);
-      } catch (err) {
-        console.error("[assistant] failed to save action request:", err);
-      }
-    }
-  }
-
-  // ── Persist or update AI message ────────────────────────────────────────────
-  if (chatId && assistantMessageId) {
-    await prisma.assistantMessage.update({
-      where: { id: assistantMessageId },
-      data: {
-        content: answer,
-        ollamaUsed: result.ok,
-        proposals: proposals.length > 0
-          ? (proposals as unknown as import("@prisma/client").Prisma.InputJsonValue)
-          : undefined,
-        savedRequestIds: savedRequestIds.length > 0
-          ? (savedRequestIds as unknown as import("@prisma/client").Prisma.InputJsonValue)
-          : undefined,
-        status: "COMPLETED",
-      },
-    });
-    // Touch updatedAt
-    await prisma.assistantChat.update({ where: { id: chatId }, data: {} });
-  } else if (chatId && !assistantMessageId) {
-    // Fallback for non-persisted mode
-    await persistAssistantMessage({ chatId, content: answer, ollamaUsed: result.ok, proposals, savedRequestIds, status: "COMPLETED" });
-  }
-
-  await logInteraction({ userId: user.id, prompt: question, response: answer, ollamaUsed: result.ok, proposals });
-  if (!result.ok) console.warn(`[assistant] ollama fallback — ${result.reason}`);
-
-  return NextResponse.json({
-    question, answer,
-    ollamaUsed: result.ok,
-    fallbackReason: result.ok ? undefined : result.reason,
-    proposals,
-    savedRequestIds,
-    chatId,
-    respondedAt,
-  } satisfies AssistantResponse);
+  return new Response(sseStream, { headers: SSE_HEADERS });
 }
 
 // ── GET /api/assistant ─────────────────────────────────────────────────────────

@@ -2,8 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useAuth } from "../../hooks/useAuth";
-import { useLanguage } from "../../contexts/LanguageContext";
-import { t } from "../../lib/i18n";
+import { useTranslation } from "../../hooks/useTranslation";
 import { generateCSV, generateXLSX } from "../../lib/export";
 import { ModalShell } from "../../components/ModalShell";
 import { DeleteConfirm } from "../../components/DeleteConfirm";
@@ -62,6 +61,12 @@ function SupplierForm({ mode, form, onChange, onSave, onClose }: {
   onChange: <K extends keyof FormState>(k: K, v: FormState[K]) => void;
   onSave: () => void; onClose: () => void;
 }) {
+  const { t } = useTranslation();
+  const statusLabels: Record<SupplierStatus, string> = {
+    "Active": t("status.active"),
+    "Warning": t("status.warning"),
+    "Inactive": t("status.inactive"),
+  };
   const isValid = form.name.trim() && form.contact.trim() && form.email.trim();
 
   function addMaterial()            { onChange("materials", [...form.materials, ""]); }
@@ -70,42 +75,42 @@ function SupplierForm({ mode, form, onChange, onSave, onClose }: {
 
   return (
     <ModalShell
-      title={mode === "add" ? "Add Supplier" : "Edit Supplier"}
+      title={mode === "add" ? t("form.add_supplier") : t("form.edit_supplier")}
       subtitle={mode === "add" ? "Add a new supplier to the directory." : "Update supplier information."}
       onClose={onClose}
       footer={
         <>
-          <button onClick={onClose} className="px-4 py-2 text-sm text-zinc-400 hover:text-zinc-200 transition-colors">Cancel</button>
+          <button onClick={onClose} className="px-4 py-2 text-sm text-zinc-400 hover:text-zinc-200 transition-colors">{t("delete.cancel")}</button>
           <button onClick={onSave} disabled={!isValid} className="px-5 py-2 bg-blue-600 hover:bg-blue-500 disabled:opacity-40 disabled:cursor-not-allowed text-white text-sm font-medium rounded-lg transition-colors">
-            {mode === "add" ? "Add Supplier" : "Save Changes"}
+            {mode === "add" ? t("action.add_supplier") : t("action.save_changes")}
           </button>
         </>
       }
     >
       <div className="space-y-4">
         <div className="grid grid-cols-2 gap-4">
-          <div><Label>Supplier Name <span className="text-red-500">*</span></Label><input className={inputCls} value={form.name} onChange={(e) => onChange("name", e.target.value)} placeholder="e.g. TorayComposite" /></div>
-          <div><Label>Status</Label><select className={inputCls} value={form.status} onChange={(e) => onChange("status", e.target.value as SupplierStatus)}>{STATUSES.map((s) => <option key={s}>{s}</option>)}</select></div>
+          <div><Label>{t("form.label_name")} <span className="text-red-500">{t("form.required_field")}</span></Label><input className={inputCls} value={form.name} onChange={(e) => onChange("name", e.target.value)} placeholder="e.g. TorayComposite" /></div>
+          <div><Label>{t("table.status")}</Label><select className={inputCls} value={form.status} onChange={(e) => onChange("status", e.target.value as SupplierStatus)}>{STATUSES.map((s) => <option key={s} value={s}>{statusLabels[s]}</option>)}</select></div>
         </div>
         <div className="grid grid-cols-2 gap-4">
-          <div><Label>Contact Person <span className="text-red-500">*</span></Label><input className={inputCls} value={form.contact} onChange={(e) => onChange("contact", e.target.value)} placeholder="e.g. Hans Müller" /></div>
-          <div><Label>Email <span className="text-red-500">*</span></Label><input type="email" className={inputCls} value={form.email} onChange={(e) => onChange("email", e.target.value)} placeholder="e.g. contact@supplier.com" /></div>
+          <div><Label>{t("form.label_contact_person")} <span className="text-red-500">{t("form.required_field")}</span></Label><input className={inputCls} value={form.contact} onChange={(e) => onChange("contact", e.target.value)} placeholder="e.g. Hans Müller" /></div>
+          <div><Label>{t("form.label_email")} <span className="text-red-500">{t("form.required_field")}</span></Label><input type="email" className={inputCls} value={form.email} onChange={(e) => onChange("email", e.target.value)} placeholder="e.g. contact@supplier.com" /></div>
         </div>
         <div className="grid grid-cols-2 gap-4">
-          <div><Label>Phone</Label><input type="tel" className={inputCls} value={form.phone} onChange={(e) => onChange("phone", e.target.value)} placeholder="e.g. +49 89 4521 7800" /></div>
-          <div><Label>Country</Label><input className={inputCls} value={form.country} onChange={(e) => onChange("country", e.target.value)} placeholder="e.g. Germany" /></div>
+          <div><Label>{t("form.label_phone")}</Label><input type="tel" className={inputCls} value={form.phone} onChange={(e) => onChange("phone", e.target.value)} placeholder="e.g. +49 89 4521 7800" /></div>
+          <div><Label>{t("table.country")}</Label><input className={inputCls} value={form.country} onChange={(e) => onChange("country", e.target.value)} placeholder="e.g. Germany" /></div>
         </div>
         <div className="grid grid-cols-2 gap-4">
-          <div><Label>Lead Time</Label><input className={inputCls} value={form.leadTime} onChange={(e) => onChange("leadTime", e.target.value)} placeholder="e.g. 6 weeks" /></div>
+          <div><Label>{t("table.lead_time")}</Label><input className={inputCls} value={form.leadTime} onChange={(e) => onChange("leadTime", e.target.value)} placeholder="e.g. 6 weeks" /></div>
           <div>
-            <Label>On-Time Delivery (%)</Label>
+            <Label>{t("table.on_time_rate")}</Label>
             <input type="number" step="1" min={0} max={100} className={inputCls} value={form.onTimeRate === 0 ? "" : form.onTimeRate} onChange={(e) => onChange("onTimeRate", Math.min(100, Math.max(0, parseInt(e.target.value) || 0)))} placeholder="90" />
             {form.onTimeRate > 0 && <div className="mt-1.5"><RatingBar value={form.onTimeRate} /></div>}
           </div>
         </div>
         <div>
           <div className="flex items-center justify-between mb-2">
-            <Label>Materials Supplied</Label>
+            <Label>{t("form.section_specifications")}</Label>
             <button onClick={addMaterial} className="flex items-center gap-1.5 text-xs text-blue-400 hover:text-blue-300 transition-colors">
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" /></svg>
               Add material
@@ -134,6 +139,12 @@ function SupplierForm({ mode, form, onChange, onSave, onClose }: {
 // ── Page ──────────────────────────────────────────────────────────────────────
 
 export default function SuppliersClient({ initialItems }: { initialItems: Supplier[] }) {
+  const { t, language } = useTranslation();
+  const statusLabels: Record<SupplierStatus, string> = {
+    "Active": t("status.active"),
+    "Warning": t("status.warning"),
+    "Inactive": t("status.inactive"),
+  };
   const { user } = useAuth();
   const isViewer = user?.role === "VIEWER";
   const [items, setItems]         = useState<Supplier[]>(initialItems);
@@ -145,7 +156,6 @@ export default function SuppliersClient({ initialItems }: { initialItems: Suppli
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm]           = useState<FormState>(EMPTY_FORM);
   const [deleteId, setDeleteId]   = useState<string | null>(null);
-  const { language } = useLanguage();
   const { toasts, showToast }     = useToast();
 
   // Reset to page 1 when filters change
@@ -168,8 +178,8 @@ export default function SuppliersClient({ initialItems }: { initialItems: Suppli
 
   const summary = [
     { label: "Total Suppliers",   value: items.length,                                          accent: "text-zinc-100",    sf: null       },
-    { label: "Active",            value: items.filter((s) => s.status === "Active").length,     accent: "text-emerald-400", sf: "Active"   },
-    { label: "Warning",           value: items.filter((s) => s.status === "Warning").length,    accent: "text-amber-400",   sf: "Warning"  },
+    { label: statusLabels["Active"],  value: items.filter((s) => s.status === "Active").length,     accent: "text-emerald-400", sf: "Active"   },
+    { label: statusLabels["Warning"], value: items.filter((s) => s.status === "Warning").length,    accent: "text-amber-400",   sf: "Warning"  },
     { label: "Avg. On-Time Rate", value: `${avgRate}%`,                                         accent: "text-blue-400",    sf: null       },
   ];
 
@@ -245,9 +255,9 @@ export default function SuppliersClient({ initialItems }: { initialItems: Suppli
       {/* Table */}
       <section className="bg-zinc-900 rounded-xl border border-zinc-800">
         <div className="flex items-center gap-3 px-6 py-4 border-b border-zinc-800 flex-wrap">
-          <SearchInput value={search} onChange={setSearch} placeholder="Search name, contact, country, material…" />
+          <SearchInput value={search} onChange={setSearch} placeholder={t("search.placeholder_suppliers")} />
           <select value={statusFilter} onChange={(e) => setStatus(e.target.value as SupplierStatus | "All")} className="bg-zinc-800 border border-zinc-700 text-zinc-300 text-xs px-3 py-2 rounded-lg focus:outline-none focus:border-blue-500 transition-colors">
-            {["All", ...STATUSES].map((s) => <option key={s}>{s}</option>)}
+            {["All", ...STATUSES].map((s) => <option key={s} value={s}>{s === "All" ? t("filter.all") : statusLabels[s as SupplierStatus]}</option>)}
           </select>
           <div className="ml-auto flex items-center gap-2">
             <span className="text-xs text-zinc-600">{filtered.length} of {items.length}</span>
@@ -287,9 +297,9 @@ export default function SuppliersClient({ initialItems }: { initialItems: Suppli
               )}
               className="px-3 py-2 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 hover:text-zinc-100 text-xs font-medium rounded-lg transition-colors"
             >
-              {t("btn.pdf", language)}
+              {t("btn.pdf")}
             </button>
-            <AddButton onClick={openAdd} label="Add Supplier" />
+            <AddButton onClick={openAdd} label={t("action.add_supplier")} />
           </div>
         </div>
 
@@ -297,22 +307,22 @@ export default function SuppliersClient({ initialItems }: { initialItems: Suppli
           <table className="w-full text-sm">
             <thead>
               <tr className="text-left text-xs text-zinc-500 uppercase tracking-wider border-b border-zinc-800">
-                <th className="px-6 py-3 font-medium">Supplier</th>
-                <th className="px-6 py-3 font-medium">Contact Person</th>
-                <th className="px-6 py-3 font-medium">Email</th>
-                <th className="px-6 py-3 font-medium">Phone</th>
-                <th className="px-6 py-3 font-medium">Lead Time</th>
-                <th className="px-6 py-3 font-medium">Materials Supplied</th>
-                <th className="px-6 py-3 font-medium">On-Time</th>
-                <th className="px-6 py-3 font-medium">Status</th>
+                <th className="px-6 py-3 font-medium">{t("form.label_supplier")}</th>
+                <th className="px-6 py-3 font-medium">{t("form.label_contact_person")}</th>
+                <th className="px-6 py-3 font-medium">{t("form.label_email")}</th>
+                <th className="px-6 py-3 font-medium">{t("form.label_phone")}</th>
+                <th className="px-6 py-3 font-medium">{t("table.lead_time")}</th>
+                <th className="px-6 py-3 font-medium">{t("form.section_specifications")}</th>
+                <th className="px-6 py-3 font-medium">{t("table.on_time_rate")}</th>
+                <th className="px-6 py-3 font-medium">{t("table.status")}</th>
                 <th className="px-6 py-3 font-medium"></th>
               </tr>
             </thead>
             <tbody>
               {filtered.length === 0 ? (
                 <tr><td colSpan={9} className="px-6 py-16 text-center">
-                  <p className="text-zinc-500 text-sm">No suppliers match your filters.</p>
-                  <button onClick={() => { setSearch(""); setStatus("All"); }} className="text-xs text-blue-400 hover:text-blue-300 mt-2">Clear filters</button>
+                  <p className="text-zinc-500 text-sm">{t("empty.no_suppliers")}</p>
+                  <button onClick={() => { setSearch(""); setStatus("All"); }} className="text-xs text-blue-400 hover:text-blue-300 mt-2">{t("filter.clear_filters")}</button>
                 </td></tr>
               ) : paged.map((s, i) => (
                 <tr key={s.id} className={`hover:bg-zinc-800/40 transition-colors ${i < paged.length - 1 ? "border-b border-zinc-800" : ""}`}>
@@ -333,7 +343,7 @@ export default function SuppliersClient({ initialItems }: { initialItems: Suppli
                   </td>
                   <td className="px-6 py-3.5"><RatingBar value={s.onTimeRate} /></td>
                   <td className="px-6 py-3.5">
-                    <InlineStatusSelect value={s.status} options={STATUSES} styles={statusStyles} onChange={(v) => changeStatus(s.id, v)} />
+                    <InlineStatusSelect value={s.status} options={STATUSES} styles={statusStyles} onChange={(v) => changeStatus(s.id, v)} labels={statusLabels} />
                   </td>
                   <td className="px-6 py-3.5">
                     <div className="flex items-center gap-1">
@@ -353,7 +363,7 @@ export default function SuppliersClient({ initialItems }: { initialItems: Suppli
 
         <div className="flex items-center justify-between px-6 py-3 border-t border-zinc-800">
           <div className="flex items-center gap-2">
-            <span className="text-xs text-zinc-500">Rows per page:</span>
+            <span className="text-xs text-zinc-500">{t("pagination.rows_per_page")}</span>
             <select
               value={pageSize}
               onChange={(e) => { setPageSize(Number(e.target.value)); setPage(1); }}
@@ -363,7 +373,7 @@ export default function SuppliersClient({ initialItems }: { initialItems: Suppli
             </select>
           </div>
           <span className="text-xs text-zinc-500">
-            Showing {Math.min((page - 1) * pageSize + 1, filtered.length)}–{Math.min(page * pageSize, filtered.length)} of {filtered.length}
+            {t("pagination.showing")} {Math.min((page - 1) * pageSize + 1, filtered.length)}–{Math.min(page * pageSize, filtered.length)} {t("pagination.of")} {filtered.length}
           </span>
           <div className="flex items-center gap-1">
             <button
@@ -371,7 +381,7 @@ export default function SuppliersClient({ initialItems }: { initialItems: Suppli
               disabled={page === 1}
               className="text-xs text-zinc-400 hover:text-zinc-200 disabled:opacity-40 disabled:cursor-not-allowed px-2 py-1 transition-colors"
             >
-              Previous
+              {t("pagination.previous")}
             </button>
             <span className="text-xs text-zinc-400">{page} / {totalPages}</span>
             <button
@@ -379,14 +389,14 @@ export default function SuppliersClient({ initialItems }: { initialItems: Suppli
               disabled={page >= totalPages}
               className="text-xs text-zinc-400 hover:text-zinc-200 disabled:opacity-40 disabled:cursor-not-allowed px-2 py-1 transition-colors"
             >
-              Next
+              {t("pagination.next")}
             </button>
           </div>
         </div>
       </section>
 
       {formMode && <SupplierForm mode={formMode} form={form} onChange={setField} onSave={saveItem} onClose={closeForm} />}
-      {deleteId && deletingItem && <DeleteConfirm title="Delete Supplier" itemName={deletingItem.name} onConfirm={confirmDelete} onClose={() => setDeleteId(null)} />}
+      {deleteId && deletingItem && <DeleteConfirm title={t("delete.title_supplier")} itemName={deletingItem.name} onConfirm={confirmDelete} onClose={() => setDeleteId(null)} />}
       <ToastList toasts={toasts} />
     </div>
   );

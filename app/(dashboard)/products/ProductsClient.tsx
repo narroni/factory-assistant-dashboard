@@ -2,8 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useAuth } from "../../hooks/useAuth";
-import { useLanguage } from "../../contexts/LanguageContext";
-import { t } from "../../lib/i18n";
+import { useTranslation } from "../../hooks/useTranslation";
 import { generateCSV, generateXLSX } from "../../lib/export";
 import { ModalShell } from "../../components/ModalShell";
 import { DeleteConfirm } from "../../components/DeleteConfirm";
@@ -59,20 +58,21 @@ function ProductModal({
   onChange: <K extends keyof FormState>(k: K, v: FormState[K]) => void;
   onSave: () => void; onClose: () => void;
 }) {
+  const { t } = useTranslation();
   const isValid = form.articleCode.trim() && form.productName.trim() && form.crateTypeId;
   const n = (v: string, fallback = 0) => parseFloat(v) || fallback;
 
   return (
     <ModalShell
-      title={mode === "add" ? "Add Product" : "Edit Product"}
-      subtitle={mode === "add" ? "Add a new blade product specification." : "Update product specification."}
+      title={mode === "add" ? t("form.add_product") : t("form.edit_product")}
+      subtitle={mode === "add" ? t("form.add_product_subtitle") : t("form.edit_product_subtitle")}
       onClose={onClose}
       maxWidth="max-w-2xl"
       footer={
         <>
-          <button onClick={onClose} className="px-4 py-2 text-sm text-zinc-400 hover:text-zinc-200 transition-colors">Cancel</button>
+          <button onClick={onClose} className="px-4 py-2 text-sm text-zinc-400 hover:text-zinc-200 transition-colors">{t("delete.cancel")}</button>
           <button onClick={onSave} disabled={!isValid} className="px-5 py-2 bg-zinc-700 hover:bg-zinc-600 disabled:opacity-40 disabled:cursor-not-allowed text-white text-sm font-medium rounded-lg transition-colors">
-            {mode === "add" ? "Add Product" : "Save Changes"}
+            {mode === "add" ? t("action.add_product") : t("action.save_changes")}
           </button>
         </>
       }
@@ -81,42 +81,42 @@ function ProductModal({
         {/* Identity */}
         <div className="grid grid-cols-2 gap-4">
           <div>
-            <Label>Article Code <span className="text-red-500">*</span></Label>
+            <Label>{t("form.label_article_code")} <span className="text-red-500">{t("form.required_field")}</span></Label>
             <input className={inputCls} value={form.articleCode} onChange={(e) => onChange("articleCode", e.target.value)} placeholder="e.g. RDG600/1,25" />
           </div>
           <div>
-            <Label>Product Name <span className="text-red-500">*</span></Label>
+            <Label>{t("form.label_product_name")} <span className="text-red-500">{t("form.required_field")}</span></Label>
             <input className={inputCls} value={form.productName} onChange={(e) => onChange("productName", e.target.value)} placeholder="e.g. Rasperblade" />
           </div>
         </div>
 
         {/* Dimensions */}
         <div>
-          <p className="text-xs font-semibold text-zinc-400 uppercase tracking-wider mb-2">Dimensions</p>
+          <p className="text-xs font-semibold text-zinc-400 uppercase tracking-wider mb-2">{t("form.section_dimensions")}</p>
           <div className="grid grid-cols-3 gap-3">
-            <div><Label>Length (mm)</Label><input type="number" className={inputCls} value={form.lengthMm || ""} onChange={(e) => onChange("lengthMm", n(e.target.value))} placeholder="600" /></div>
-            <div><Label>Width (mm)</Label><input type="number" className={inputCls} value={form.widthMm || ""} onChange={(e) => onChange("widthMm", n(e.target.value))} placeholder="21" /></div>
-            <div><Label>Thickness (mm)</Label><input type="number" step="0.01" className={inputCls} value={form.thicknessMm || ""} onChange={(e) => onChange("thicknessMm", n(e.target.value))} placeholder="1.25" /></div>
+            <div><Label>{t("form.label_length")}</Label><input type="number" className={inputCls} value={form.lengthMm || ""} onChange={(e) => onChange("lengthMm", n(e.target.value))} placeholder="600" /></div>
+            <div><Label>{t("form.label_width")}</Label><input type="number" className={inputCls} value={form.widthMm || ""} onChange={(e) => onChange("widthMm", n(e.target.value))} placeholder="21" /></div>
+            <div><Label>{t("form.label_thickness")}</Label><input type="number" step="0.01" className={inputCls} value={form.thicknessMm || ""} onChange={(e) => onChange("thicknessMm", n(e.target.value))} placeholder="1.25" /></div>
           </div>
         </div>
 
         {/* Blade spec */}
         <div className="grid grid-cols-4 gap-3">
-          <div><Label>TPI</Label><input type="number" className={inputCls} value={form.tpi || ""} onChange={(e) => onChange("tpi", parseInt(e.target.value) || 17)} placeholder="17" /></div>
+          <div><Label>{t("form.label_tpi")}</Label><input type="number" className={inputCls} value={form.tpi || ""} onChange={(e) => onChange("tpi", parseInt(e.target.value) || 17)} placeholder="17" /></div>
           <div>
-            <Label>Punched On</Label>
+            <Label>{t("form.label_punched_on")}</Label>
             <select className={inputCls} value={form.punchedOn} onChange={(e) => onChange("punchedOn", e.target.value)}>
               {PUNCHED_OPTIONS.map((o) => <option key={o}>{o}</option>)}
             </select>
           </div>
-          <div><Label>Hole Distance</Label><input className={inputCls} value={form.holeDistance ?? ""} onChange={(e) => onChange("holeDistance", e.target.value)} placeholder="100-200-100" /></div>
-          <div><Label>Hole Size</Label><input className={inputCls} value={form.holeSize ?? ""} onChange={(e) => onChange("holeSize", e.target.value)} placeholder="Ø5" /></div>
+          <div><Label>{t("form.label_hole_distance")}</Label><input className={inputCls} value={form.holeDistance ?? ""} onChange={(e) => onChange("holeDistance", e.target.value)} placeholder="100-200-100" /></div>
+          <div><Label>{t("form.label_hole_size")}</Label><input className={inputCls} value={form.holeSize ?? ""} onChange={(e) => onChange("holeSize", e.target.value)} placeholder="Ø5" /></div>
         </div>
 
         {/* Color */}
         <div className="grid grid-cols-2 gap-3">
           <div>
-            <Label>Color</Label>
+            <Label>{t("form.label_color")}</Label>
             <select className={inputCls} value={form.color} onChange={(e) => onChange("color", e.target.value)}>
               {COLORS.map((c) => <option key={c}>{c}</option>)}
             </select>
@@ -125,26 +125,26 @@ function ProductModal({
 
         {/* Weight */}
         <div>
-          <p className="text-xs font-semibold text-zinc-400 uppercase tracking-wider mb-2">Weight (kg / piece)</p>
+          <p className="text-xs font-semibold text-zinc-400 uppercase tracking-wider mb-2">{t("form.section_weight")}</p>
           <div className="grid grid-cols-2 gap-3">
-            <div><Label>Before Punching</Label><input type="number" step="0.0001" className={inputCls} value={form.weightBeforePunchingKg || ""} onChange={(e) => onChange("weightBeforePunchingKg", n(e.target.value))} placeholder="0.1260" /></div>
-            <div><Label>After Punching</Label><input type="number" step="0.0001" className={inputCls} value={form.weightAfterPunchingKg || ""} onChange={(e) => onChange("weightAfterPunchingKg", n(e.target.value))} placeholder="0.1055" /></div>
+            <div><Label>{t("form.label_weight_before")}</Label><input type="number" step="0.0001" className={inputCls} value={form.weightBeforePunchingKg || ""} onChange={(e) => onChange("weightBeforePunchingKg", n(e.target.value))} placeholder="0.1260" /></div>
+            <div><Label>{t("form.label_weight_after")}</Label><input type="number" step="0.0001" className={inputCls} value={form.weightAfterPunchingKg || ""} onChange={(e) => onChange("weightAfterPunchingKg", n(e.target.value))} placeholder="0.1055" /></div>
           </div>
         </div>
 
         {/* Crating */}
         <div>
-          <p className="text-xs font-semibold text-zinc-400 uppercase tracking-wider mb-2">Crating</p>
+          <p className="text-xs font-semibold text-zinc-400 uppercase tracking-wider mb-2">{t("form.section_crating")}</p>
           <div className="grid grid-cols-3 gap-3">
             <div>
-              <Label>Crate Type <span className="text-red-500">*</span></Label>
+              <Label>{t("form.label_crate_type")} <span className="text-red-500">{t("form.required_field")}</span></Label>
               <select className={inputCls} value={form.crateTypeId} onChange={(e) => onChange("crateTypeId", e.target.value)}>
-                <option value="">Select crate…</option>
+                <option value="">{t("form.placeholder_select_crate")}</option>
                 {crateTypes.map((c) => <option key={c.id} value={c.id}>{c.code}</option>)}
               </select>
             </div>
-            <div><Label>Pcs per Crate</Label><input type="number" className={inputCls} value={form.pcsPerCrate || ""} onChange={(e) => onChange("pcsPerCrate", parseInt(e.target.value) || 0)} placeholder="2000" /></div>
-            <div><Label>Max Crates / Tower</Label><input type="number" className={inputCls} value={form.maxCratesPerTower || ""} onChange={(e) => onChange("maxCratesPerTower", parseInt(e.target.value) || 5)} placeholder="5" /></div>
+            <div><Label>{t("form.label_pcs_per_crate")}</Label><input type="number" className={inputCls} value={form.pcsPerCrate || ""} onChange={(e) => onChange("pcsPerCrate", parseInt(e.target.value) || 0)} placeholder="2000" /></div>
+            <div><Label>{t("form.label_max_crates_tower")}</Label><input type="number" className={inputCls} value={form.maxCratesPerTower || ""} onChange={(e) => onChange("maxCratesPerTower", parseInt(e.target.value) || 5)} placeholder="5" /></div>
           </div>
         </div>
       </div>
@@ -154,9 +154,9 @@ function ProductModal({
 
 // ── Detail Panel ──────────────────────────────────────────────────────────────
 
-function DetailPanel({ product, onClose, onEdit, onDelete }: {
+function DetailPanel({ product, onClose, onEdit, onDelete, isViewer, isWorker }: {
   product: BladeProduct; onClose: () => void;
-  onEdit: (p: BladeProduct) => void; onDelete: (id: string) => void;
+  onEdit: (p: BladeProduct) => void; onDelete: (id: string) => void; isViewer: boolean; isWorker: boolean;
 }) {
   function Row({ label, value }: { label: string; value: React.ReactNode }) {
     return (
@@ -209,10 +209,12 @@ function DetailPanel({ product, onClose, onEdit, onDelete }: {
           <Row label="Max Crates / Tower" value={product.maxCratesPerTower} />
         </div>
       </div>
-      <div className="flex items-center gap-2 px-5 py-3 border-t border-zinc-800 shrink-0">
-        <button onClick={() => onEdit(product)} className="flex-1 py-2 text-xs font-medium text-zinc-200 bg-zinc-800 hover:bg-zinc-700 rounded-lg transition-colors">Edit</button>
-        <button onClick={() => onDelete(product.id)} className="px-4 py-2 text-xs font-medium text-red-400 hover:text-red-300 bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 rounded-lg transition-colors">Delete</button>
-      </div>
+      {!isWorker && (
+        <div className="flex items-center gap-2 px-5 py-3 border-t border-zinc-800 shrink-0">
+          <button onClick={() => onEdit(product)} disabled={isViewer} className={`flex-1 py-2 text-xs font-medium text-zinc-200 bg-zinc-800 hover:bg-zinc-700 rounded-lg transition-colors ${isViewer ? "opacity-50 cursor-not-allowed" : ""}`}>Edit</button>
+          <button onClick={() => onDelete(product.id)} disabled={isViewer} className={`px-4 py-2 text-xs font-medium text-red-400 hover:text-red-300 bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 rounded-lg transition-colors ${isViewer ? "opacity-50 cursor-not-allowed" : ""}`}>Delete</button>
+        </div>
+      )}
     </div>
   );
 }
@@ -222,6 +224,7 @@ function DetailPanel({ product, onClose, onEdit, onDelete }: {
 export default function ProductsClient({ initialItems, crateTypes }: { initialItems: BladeProduct[]; crateTypes: CrateType[] }) {
   const { user } = useAuth();
   const isViewer = user?.role === "VIEWER";
+  const isWorker = user?.role === "WORKER";
   const [items, setItems]         = useState<BladeProduct[]>(initialItems);
   const [search, setSearch]       = useState("");
   const [colorFilter, setColor]   = useState<string>("All");
@@ -232,7 +235,7 @@ export default function ProductsClient({ initialItems, crateTypes }: { initialIt
   const [form, setForm]           = useState<FormState>(EMPTY_FORM);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [deleteId, setDeleteId]   = useState<string | null>(null);
-  const { language }              = useLanguage();
+  const { t }                     = useTranslation();
   const { toasts, showToast }     = useToast();
 
   useEffect(() => { setPage(1); }, [search, colorFilter]);
@@ -256,6 +259,23 @@ export default function ProductsClient({ initialItems, crateTypes }: { initialIt
 
   async function saveItem() {
     if (!form.articleCode.trim() || !form.productName.trim() || !form.crateTypeId) return;
+
+    if (isWorker && formMode === "add") {
+      try {
+        const res = await fetch("/api/requests", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ type: "CREATE_PRODUCT", payload: form }),
+        });
+        if (!res.ok) throw new Error("Request failed");
+        showToast("Request submitted — waiting for manager approval");
+        closeForm();
+      } catch {
+        showToast("Failed to submit request", "error");
+      }
+      return;
+    }
+
     try {
       if (formMode === "add") {
         const np = await addBladeProduct({ ...form, status: "Active" });
@@ -298,7 +318,7 @@ export default function ProductsClient({ initialItems, crateTypes }: { initialIt
         {/* Summary strip */}
         <div className="grid grid-cols-3 gap-3">
           {[
-            { label: "Total Products", value: items.length },
+            { label: t("summary.total_products"), value: items.length },
             { label: "GOLD", value: items.filter((p) => p.color === "GOLD").length },
             { label: "SILVER", value: items.filter((p) => p.color === "SILVER").length },
           ].map((s) => (
@@ -312,9 +332,9 @@ export default function ProductsClient({ initialItems, crateTypes }: { initialIt
         {/* Table */}
         <section className="bg-zinc-900 rounded-lg border border-zinc-800">
           <div className="flex items-center gap-3 px-5 py-3 border-b border-zinc-800 flex-wrap">
-            <SearchInput value={search} onChange={setSearch} placeholder="Search article code, name, color…" />
+            <SearchInput value={search} onChange={setSearch} placeholder={t("search.placeholder_products")} />
             <select value={colorFilter} onChange={(e) => setColor(e.target.value)} className="bg-zinc-800 border border-zinc-700 text-zinc-300 text-xs px-3 py-2 rounded-lg focus:outline-none focus:border-zinc-500 transition-colors">
-              {["All", ...COLORS].map((c) => <option key={c}>{c}</option>)}
+              {["All", ...COLORS].map((c) => <option key={c}>{c === "All" ? t("filter.all") : c}</option>)}
             </select>
             <div className="ml-auto flex items-center gap-2">
               <span className="text-xs text-zinc-600">{filtered.length} / {items.length}</span>
@@ -331,9 +351,10 @@ export default function ProductsClient({ initialItems, crateTypes }: { initialIt
                   ["Article Code", "Product Name", "Length (mm)", "Width (mm)", "Thickness (mm)", "TPI", "Punched On", "Hole Distance", "Hole Size", "Color", "Weight Before (kg)", "Weight After (kg)", "Pcs/Crate", "Crate", "Max Crates/Tower"],
                   "products"
                 )}
-                className="px-3 py-2 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-xs font-medium rounded-lg transition-colors"
+                disabled={isViewer}
+                className={`px-3 py-2 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-xs font-medium rounded-lg transition-colors ${isViewer ? "opacity-50 cursor-not-allowed" : ""}`}
               >
-                {t("btn.csv", language)}
+                {t("btn.csv")}
               </button>
               <button
                 onClick={() => generateXLSX(
@@ -347,11 +368,12 @@ export default function ProductsClient({ initialItems, crateTypes }: { initialIt
                   ["Article Code", "Product Name", "Length (mm)", "Width (mm)", "Thickness (mm)", "TPI", "Color", "Weight Before (kg)", "Weight After (kg)", "Pcs/Crate", "Crate"],
                   "products"
                 )}
-                className="px-3 py-2 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-xs font-medium rounded-lg transition-colors"
+                disabled={isViewer}
+                className={`px-3 py-2 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-xs font-medium rounded-lg transition-colors ${isViewer ? "opacity-50 cursor-not-allowed" : ""}`}
               >
                 XLSX
               </button>
-              <AddButton onClick={openAdd} label="Add Product" />
+              <AddButton onClick={openAdd} label={isWorker ? t("request.request_new_product") : t("action.add_product")} disabled={isViewer} />
             </div>
           </div>
 
@@ -359,24 +381,24 @@ export default function ProductsClient({ initialItems, crateTypes }: { initialIt
             <table className="w-full text-sm">
               <thead>
                 <tr className="text-left text-xs text-zinc-600 uppercase tracking-wider border-b border-zinc-800">
-                  <th className="px-5 py-2 font-medium">Article Code</th>
-                  <th className="px-5 py-2 font-medium">Product Name</th>
+                  <th className="px-5 py-2 font-medium">{t("table.article_code")}</th>
+                  <th className="px-5 py-2 font-medium">{t("table.product_name")}</th>
                   <th className="px-5 py-2 font-medium">L × W × T (mm)</th>
-                  <th className="px-5 py-2 font-medium">TPI</th>
-                  <th className="px-5 py-2 font-medium">Hole Pattern</th>
-                  <th className="px-5 py-2 font-medium">Color</th>
-                  <th className="px-5 py-2 font-medium">Wt After (kg)</th>
-                  <th className="px-5 py-2 font-medium">Pcs/Crate</th>
-                  <th className="px-5 py-2 font-medium">Crate</th>
+                  <th className="px-5 py-2 font-medium">{t("table.tpi")}</th>
+                  <th className="px-5 py-2 font-medium">{t("table.hole_pattern")}</th>
+                  <th className="px-5 py-2 font-medium">{t("table.color")}</th>
+                  <th className="px-5 py-2 font-medium">{t("table.wt_after")}</th>
+                  <th className="px-5 py-2 font-medium">{t("table.pcs_crate")}</th>
+                  <th className="px-5 py-2 font-medium">{t("table.crate")}</th>
                   <th className="px-5 py-2 font-medium"></th>
                 </tr>
               </thead>
               <tbody>
                 {filtered.length === 0 ? (
                   <tr><td colSpan={10} className="px-5 py-12 text-center text-xs text-zinc-600">
-                    No products found.
+                    {t("empty.no_products")}
                     {(search || colorFilter !== "All") && (
-                      <button onClick={() => { setSearch(""); setColor("All"); }} className="ml-2 text-zinc-500 hover:text-zinc-300 underline">Clear filters</button>
+                      <button onClick={() => { setSearch(""); setColor("All"); }} className="ml-2 text-zinc-500 hover:text-zinc-300 underline">{t("filter.clear_filters")}</button>
                     )}
                   </td></tr>
                 ) : paged.map((p, i) => (
@@ -398,10 +420,10 @@ export default function ProductsClient({ initialItems, crateTypes }: { initialIt
                     <td className="px-5 py-2.5 text-xs text-zinc-400">{p.crateCode}</td>
                     <td className="px-5 py-2.5" onClick={(e) => e.stopPropagation()}>
                       <div className="flex items-center gap-1">
-                        {!isViewer && (
+                        {!isWorker && (
                           <>
-                            <EditButton onClick={() => openEdit(p)} />
-                            <DeleteButton onClick={() => setDeleteId(p.id)} />
+                            <EditButton onClick={() => openEdit(p)} disabled={isViewer} />
+                            <DeleteButton onClick={() => setDeleteId(p.id)} disabled={isViewer} />
                           </>
                         )}
                       </div>
@@ -415,16 +437,16 @@ export default function ProductsClient({ initialItems, crateTypes }: { initialIt
           {/* Pagination */}
           <div className="flex items-center justify-between px-5 py-2.5 border-t border-zinc-800">
             <div className="flex items-center gap-2">
-              <span className="text-xs text-zinc-500">Rows:</span>
+              <span className="text-xs text-zinc-500">{t("pagination.rows")}</span>
               <select value={pageSize} onChange={(e) => { setPageSize(Number(e.target.value)); setPage(1); }} className="bg-zinc-800 border border-zinc-700 text-zinc-300 text-xs px-2 py-1 rounded focus:outline-none">
                 {[10, 25, 50].map((n) => <option key={n} value={n}>{n}</option>)}
               </select>
             </div>
-            <span className="text-xs text-zinc-500">{Math.min((page-1)*pageSize+1, filtered.length)}–{Math.min(page*pageSize, filtered.length)} of {filtered.length}</span>
+            <span className="text-xs text-zinc-500">{Math.min((page-1)*pageSize+1, filtered.length)}–{Math.min(page*pageSize, filtered.length)} {t("pagination.of")} {filtered.length}</span>
             <div className="flex items-center gap-1">
-              <button onClick={() => setPage((p) => Math.max(1, p-1))} disabled={page === 1} className="text-xs text-zinc-400 hover:text-zinc-200 disabled:opacity-40 px-2 py-1">Previous</button>
+              <button onClick={() => setPage((p) => Math.max(1, p-1))} disabled={page === 1} className="text-xs text-zinc-400 hover:text-zinc-200 disabled:opacity-40 px-2 py-1">{t("pagination.previous")}</button>
               <span className="text-xs text-zinc-500">{page}/{totalPages}</span>
-              <button onClick={() => setPage((p) => Math.min(totalPages, p+1))} disabled={page >= totalPages} className="text-xs text-zinc-400 hover:text-zinc-200 disabled:opacity-40 px-2 py-1">Next</button>
+              <button onClick={() => setPage((p) => Math.min(totalPages, p+1))} disabled={page >= totalPages} className="text-xs text-zinc-400 hover:text-zinc-200 disabled:opacity-40 px-2 py-1">{t("pagination.next")}</button>
             </div>
           </div>
         </section>
@@ -437,6 +459,8 @@ export default function ProductsClient({ initialItems, crateTypes }: { initialIt
           onClose={() => setSelectedId(null)}
           onEdit={openEdit}
           onDelete={(id) => setDeleteId(id)}
+          isViewer={isViewer}
+          isWorker={isWorker}
         />
       )}
 
@@ -453,7 +477,7 @@ export default function ProductsClient({ initialItems, crateTypes }: { initialIt
       )}
       {deleteId && deletingItem && (
         <DeleteConfirm
-          title="Delete Product"
+          title={t("delete.title_product")}
           itemName={deletingItem.articleCode}
           onConfirm={confirmDelete}
           onClose={() => setDeleteId(null)}

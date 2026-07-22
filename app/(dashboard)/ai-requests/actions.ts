@@ -25,7 +25,7 @@ export async function getAIRequests(): Promise<ActionRequest[]> {
   const user = await getSessionUser();
   if (!user) return [];
 
-  const where = user.role === "ADMIN" ? {} : { createdByUserId: user.id };
+  const where = user.role === "SUPER_ADMIN" || user.role === "MANAGER" ? {} : { createdByUserId: user.id };
 
   const requests = await prisma.aIActionRequest.findMany({
     where,
