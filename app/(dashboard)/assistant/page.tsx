@@ -810,38 +810,6 @@ export default function AssistantPage() {
     }
   }
 
-<<<<<<< HEAD
-  // Poll for PENDING messages
-  useEffect(() => {
-    if (!activeChatId) return;
-
-    const interval = setInterval(async () => {
-      setMessages((prev) => {
-        // Design decision #2: never poll while a message is actively streaming —
-        // the DB row is still PENDING/empty and would clobber the typewriter text.
-        if (prev.some((m) => m.status === "STREAMING")) return prev;
-        // Only poll if there are PENDING messages
-        if (!prev.some((m) => m.status === "PENDING")) return prev;
-
-        (async () => {
-          try {
-            const res = await fetch(`/api/chats/${activeChatId}`);
-            const data = await res.json();
-            if (data.messages) {
-              setMessages(data.messages.map(mapMessage));
-            }
-          } catch (e) {
-            console.error("Polling failed:", e);
-          }
-        })();
-
-        return prev;
-      });
-    }, 2000);
-
-    return () => clearInterval(interval);
-  }, [activeChatId]);
-=======
   // A 2s poll for PENDING messages used to live here. It was unreachable: the
   // send path marks its message STREAMING (never PENDING) and the effect
   // explicitly skipped while anything was STREAMING, while the server closes
@@ -851,7 +819,6 @@ export default function AssistantPage() {
   // setMessages updater (double-firing under StrictMode) and dropped
   // respondedAt on every tick. A stale PENDING row now simply renders its
   // existing spinner; the FAILED state and its "Try again" button remain.
->>>>>>> e558fa8111053022657c0be3c3c0820c60cb46be
 
   const isEmpty = messages.length === 0;
 

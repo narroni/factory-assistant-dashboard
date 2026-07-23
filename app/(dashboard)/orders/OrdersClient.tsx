@@ -104,11 +104,7 @@ function OrderForm({
   return (
     <ModalShell
       title={mode === "add" ? t("form.add_order") : t("form.edit_order")}
-<<<<<<< HEAD
-      subtitle={`${t("table.order_no")}: ${orderId}`}
-=======
       subtitle={`${t("table.order_no")}: ${mode === "add" ? t("form.order_no_on_save") : orderId}`}
->>>>>>> e558fa8111053022657c0be3c3c0820c60cb46be
       onClose={onClose}
       maxWidth="max-w-2xl"
       footer={
@@ -453,11 +449,7 @@ export default function OrdersClient({ initialItems, bladeProducts, customers }:
           body: JSON.stringify({
             type: "CREATE_ORDER",
             payload: {
-<<<<<<< HEAD
-              orderNumber: `ORD-${Date.now()}`,
-=======
               orderNumber: draftOrderNumber,
->>>>>>> e558fa8111053022657c0be3c3c0820c60cb46be
               customer: form.customer,
               customerId: form.customerId || null,
               productName: form.product,

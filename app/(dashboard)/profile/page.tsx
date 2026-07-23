@@ -3,11 +3,7 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { getCurrentUser } from "../../lib/auth-helpers";
-<<<<<<< HEAD
-import { useToast } from "../../components/Toast";
-=======
 import { useToast, ToastList } from "../../components/Toast";
->>>>>>> e558fa8111053022657c0be3c3c0820c60cb46be
 import { useTranslation } from "../../hooks/useTranslation";
 import { changePassword } from "./actions";
 import type { User } from "@prisma/client";

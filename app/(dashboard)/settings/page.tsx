@@ -12,11 +12,7 @@ import { getUsers, createUser, updateUser, deactivateUser, activateUser, resetUs
 import { getAuditLogs } from "../../lib/audit";
 import type { UserRole } from "@prisma/client";
 
-<<<<<<< HEAD
 export const dynamic = 'force-dynamic';
-
-=======
->>>>>>> e558fa8111053022657c0be3c3c0820c60cb46be
 // ── Types ─────────────────────────────────────────────────────────────────────
 
 type BackupRecord = {
@@ -881,18 +877,13 @@ export default function SettingsPage() {
                             </td>
                             <td className="px-4 py-3 text-xs text-zinc-500">{u.lastLoginAt || "Never"}</td>
                             <td className="px-4 py-3 text-xs text-zinc-500">
-<<<<<<< HEAD
-                              {userLastActions[u.id]?.actionType && userLastActions[u.id]?.entity ? `${userLastActions[u.id]?.actionType} ${userLastActions[u.id]?.entity}` : "—"}
-=======
                               {(() => {
                                 // Bound to a local so TypeScript can narrow it:
                                 // repeated index access on a non-literal key is
                                 // not carried through by control-flow analysis.
                                 const last = userLastActions[u.id];
                                 return last ? `${last.actionType} ${last.entity}` : "—";
-                              })()}
->>>>>>> e558fa8111053022657c0be3c3c0820c60cb46be
-                            </td>
+                              })()}                            </td>
                             <td className="px-4 py-3 text-xs text-zinc-500">{u.createdAt}</td>
                             <td className="px-4 py-3">
                               <div className="flex items-center gap-1">
