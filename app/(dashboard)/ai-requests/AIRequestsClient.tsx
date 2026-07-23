@@ -1,35 +1,44 @@
 "use client";
 
 import { Fragment, useState } from "react";
+import { useTranslation } from "../../hooks/useTranslation";
 import type { ActionRequest } from "./actions";
 
-const ACTION_LABELS: Record<string, string> = {
-  create_order: "Create Order",
-  create_purchase_request: "Purchase Request",
-  update_stock: "Update Stock",
-  assign_supplier: "Assign Supplier",
-  generate_report: "Generate Report",
-  export_data: "Export Data",
+const ACTION_KEYS: Record<string, string> = {
+  create_order: "ai_request.action_create_order",
+  create_purchase_request: "ai_request.action_purchase_request",
+  update_stock: "ai_request.action_update_stock",
+  assign_supplier: "ai_request.action_assign_supplier",
+  generate_report: "ai_request.action_generate_report",
+  export_data: "ai_request.action_export_data",
 };
 
-const STATUS_COLORS: Record<string, { bg: string; text: string; label: string }> = {
-  PENDING: { bg: "bg-amber-950/30", text: "text-amber-400", label: "Pending" },
-  APPROVED: { bg: "bg-blue-950/30", text: "text-blue-400", label: "Approved" },
-  REJECTED: { bg: "bg-red-950/30", text: "text-red-400", label: "Rejected" },
-  EXECUTED: { bg: "bg-emerald-950/30", text: "text-emerald-400", label: "Executed" },
-};
+const getStatusStyles = (t: (key: string) => string): Record<string, { bg: string; text: string; label: string }> => ({
+  PENDING: { bg: "bg-amber-950/30", text: "text-amber-400", label: t("ai_request.status_pending") },
+  APPROVED: { bg: "bg-blue-950/30", text: "text-blue-400", label: t("ai_request.status_approved") },
+  REJECTED: { bg: "bg-red-950/30", text: "text-red-400", label: t("ai_request.status_rejected") },
+  EXECUTED: { bg: "bg-emerald-950/30", text: "text-emerald-400", label: t("ai_request.status_executed") },
+});
 
 const PAGE_SIZE = 15;
 
 export default function AIRequestsClient({ initialRequests }: { initialRequests: ActionRequest[] }) {
+  const { t } = useTranslation();
   const [allRequests, setAllRequests] = useState<ActionRequest[]>(initialRequests);
   const [page, setPage] = useState(0);
   const [statusFilter, setStatusFilter] = useState<"" | "PENDING" | "APPROVED" | "REJECTED" | "EXECUTED">("");
   const [expanded, setExpanded] = useState<string | null>(null);
   const [approving, setApproving] = useState<string | null>(null);
 
-  const total = allRequests.length;
-  const requests = allRequests.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
+  // Filter before paginating: `total` drives the pager, so filtering the
+  // already-sliced page would report the wrong count and leave empty pages.
+  // "" is the "all" sentinel used by the filter buttons below.
+  const filtered = statusFilter === ""
+    ? allRequests
+    : allRequests.filter((r) => r.status === statusFilter);
+
+  const total = filtered.length;
+  const requests = filtered.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
 
   async function approve(id: string) {
     setApproving(id);
@@ -83,6 +92,7 @@ export default function AIRequestsClient({ initialRequests }: { initialRequests:
   }
 
   const totalPages = Math.ceil(total / PAGE_SIZE);
+  const statusStyles = getStatusStyles(t);
 
   return (
     <div className="px-4 sm:px-6 md:px-8 py-4 sm:py-6 space-y-4 sm:space-y-6">
@@ -106,7 +116,7 @@ export default function AIRequestsClient({ initialRequests }: { initialRequests:
                 : "border-zinc-700 bg-zinc-900 text-zinc-400 hover:bg-zinc-800 hover:text-zinc-200"
             }`}
           >
-            {status ? STATUS_COLORS[status].label : "All"}
+            {status ? statusStyles[status].label : t("filter.all")}
           </button>
         ))}
       </div>
@@ -115,7 +125,7 @@ export default function AIRequestsClient({ initialRequests }: { initialRequests:
       <div className="bg-zinc-900 rounded-xl border border-zinc-800 overflow-hidden">
         {requests.length === 0 ? (
           <div className="px-6 py-12 text-center text-sm text-zinc-500">
-            {statusFilter ? "No requests with this status." : "No action requests yet."}
+            {statusFilter ? t("ai_request.empty_no_matches") : t("ai_request.empty_no_requests")}
           </div>
         ) : (
           <>
@@ -123,17 +133,17 @@ export default function AIRequestsClient({ initialRequests }: { initialRequests:
             <table className="w-full text-sm min-w-max">
               <thead>
                 <tr className="text-left text-xs text-zinc-500 uppercase tracking-wider border-b border-zinc-800 bg-zinc-800/50">
-                  <th className="px-5 py-3 font-medium">Action</th>
+                  <th className="px-5 py-3 font-medium">{t("ai_request.table_action")}</th>
                   <th className="px-5 py-3 font-medium">Requested By</th>
                   <th className="px-5 py-3 font-medium">Reasoning</th>
-                  <th className="px-5 py-3 font-medium">Status</th>
-                  <th className="px-5 py-3 font-medium">Date</th>
-                  <th className="px-5 py-3 font-medium text-right">Actions</th>
+                  <th className="px-5 py-3 font-medium">{t("ai_request.table_status")}</th>
+                  <th className="px-5 py-3 font-medium">{t("table.date")}</th>
+                  <th className="px-5 py-3 font-medium text-right">{t("table.actions")}</th>
                 </tr>
               </thead>
               <tbody>
                 {requests.map((req, i) => {
-                  const colors = STATUS_COLORS[req.status];
+                  const colors = statusStyles[req.status];
                   const isExpanded = expanded === req.id;
                   return (
                     <Fragment key={req.id}>
@@ -145,7 +155,7 @@ export default function AIRequestsClient({ initialRequests }: { initialRequests:
                       >
                         <td className="px-5 py-3.5">
                           <span className="text-xs font-medium text-blue-400">
-                            {ACTION_LABELS[req.actionType] ?? req.actionType}
+                            {t(ACTION_KEYS[req.actionType] ?? "ai_request.action_create_order")}
                           </span>
                         </td>
                         <td className="px-5 py-3.5 text-xs text-zinc-300">{req.createdByUser.name}</td>
@@ -194,14 +204,14 @@ export default function AIRequestsClient({ initialRequests }: { initialRequests:
                                     disabled={approving === req.id}
                                     className="flex-1 text-xs font-medium text-emerald-400 hover:text-emerald-300 bg-emerald-950/30 hover:bg-emerald-950/50 border border-emerald-900/50 px-3 py-2 rounded-lg transition-colors disabled:opacity-50"
                                   >
-                                    {approving === req.id ? "…" : "✓ Approve"}
+                                    {approving === req.id ? "…" : `✓ ${t("ai_request.btn_approve")}`}
                                   </button>
                                   <button
                                     onClick={() => reject(req.id)}
                                     disabled={approving === req.id}
                                     className="flex-1 text-xs font-medium text-red-400 hover:text-red-300 bg-red-950/30 hover:bg-red-950/50 border border-red-900/50 px-3 py-2 rounded-lg transition-colors disabled:opacity-50"
                                   >
-                                    {approving === req.id ? "…" : "✕ Reject"}
+                                    {approving === req.id ? "…" : `✕ ${t("ai_request.btn_reject")}`}
                                   </button>
                                 </div>
                               )}
@@ -212,14 +222,14 @@ export default function AIRequestsClient({ initialRequests }: { initialRequests:
                                     disabled={approving === req.id}
                                     className="flex-1 text-xs font-medium text-blue-400 hover:text-blue-300 bg-blue-950/30 hover:bg-blue-950/50 border border-blue-900/50 px-3 py-2 rounded-lg transition-colors disabled:opacity-50"
                                   >
-                                    {approving === req.id ? "…" : "→ Execute"}
+                                    {approving === req.id ? "…" : `→ ${t("ai_request.btn_execute")}`}
                                   </button>
                                   <button
                                     onClick={() => reject(req.id)}
                                     disabled={approving === req.id}
                                     className="flex-1 text-xs font-medium text-red-400 hover:text-red-300 bg-red-950/30 hover:bg-red-950/50 border border-red-900/50 px-3 py-2 rounded-lg transition-colors disabled:opacity-50"
                                   >
-                                    {approving === req.id ? "…" : "✕ Reject"}
+                                    {approving === req.id ? "…" : `✕ ${t("ai_request.btn_reject")}`}
                                   </button>
                                 </div>
                               )}

@@ -2,6 +2,7 @@
 
 import { prisma } from "../../lib/prisma";
 import { calculatePackaging, type PackagingResult } from "../../lib/packaging-calculator";
+import { getSessionUser } from "../../lib/session";
 
 export type BladeProductSummary = {
   articleCode: string;
@@ -28,6 +29,8 @@ export async function getPackagingOptions(): Promise<{
   products: BladeProductSummary[];
   containers: ContainerSummary[];
 }> {
+  const user = await getSessionUser();
+  if (!user) throw new Error("Authentication required");
   const [products, containers] = await Promise.all([
     prisma.bladeProductSpec.findMany({
       orderBy: { articleCode: "asc" },
@@ -64,6 +67,8 @@ export async function runPackagingCalculation(
   qty: number,
   containerName: string,
 ): Promise<PackagingResult> {
+  const user = await getSessionUser();
+  if (!user) throw new Error("Authentication required");
   if (!articleCode || qty <= 0 || !containerName) {
     throw new Error("Invalid input");
   }

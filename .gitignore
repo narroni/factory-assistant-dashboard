@@ -43,4 +43,5 @@ next-env.d.ts
 /app/generated/prisma
 
 # database backups
+factory_dashboard_backup.sql
 /backups/*.sql

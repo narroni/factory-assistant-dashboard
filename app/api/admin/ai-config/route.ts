@@ -6,7 +6,7 @@ import { prisma } from "../../../lib/prisma";
 export async function GET() {
   const user = await getSessionUser();
   if (!user) return NextResponse.json({ error: "Unauthenticated" }, { status: 401 });
-  if (user.role !== "ADMIN") return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  if (user.role !== "SUPER_ADMIN") return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
   let config = await prisma.aIConfig.findUnique({ where: { id: "singleton" } });
   if (!config) {
@@ -19,13 +19,28 @@ export async function GET() {
 export async function PATCH(req: NextRequest) {
   const user = await getSessionUser();
   if (!user) return NextResponse.json({ error: "Unauthenticated" }, { status: 401 });
-  if (user.role !== "ADMIN") return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  if (user.role !== "SUPER_ADMIN") return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
-  const body = await req.json().catch(() => ({}));
+  const body = await req.json().catch(() => null);
+  if (!body) return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
+
+  const allowedFields = {
+    assistantName: body.assistantName,
+    systemPrompt: body.systemPrompt,
+    defaultLanguage: body.defaultLanguage,
+    focusMode: body.focusMode,
+    companyKnowledge: body.companyKnowledge,
+  };
+
+  // Remove undefined fields
+  const cleanFields = Object.fromEntries(
+    Object.entries(allowedFields).filter(([_, v]) => v !== undefined)
+  );
+
   const config = await prisma.aIConfig.upsert({
     where: { id: "singleton" },
-    create: { id: "singleton", ...body },
-    update: body,
+    create: { id: "singleton", ...cleanFields },
+    update: cleanFields,
   });
   return NextResponse.json(config);
 }

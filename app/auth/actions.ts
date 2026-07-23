@@ -1,9 +1,12 @@
 "use server";
 
 import { prisma } from "../lib/prisma";
-import { hashPassword, verifyPassword } from "../lib/auth";
+import { verifyPassword } from "../lib/auth";
 import { createSession, destroySession } from "../lib/session";
 import { redirect } from "next/navigation";
+
+// Single message for every authentication failure — see loginUser().
+const LOGIN_FAILED = "Invalid email or password";
 
 export async function loginUser(email: string, password: string) {
   try {
@@ -19,17 +22,21 @@ export async function loginUser(email: string, password: string) {
       },
     });
 
+    // Every failure path returns the identical message. Distinguishing "no such
+    // user" from "wrong password" from "account disabled" let anyone probe the
+    // login form to discover which email addresses are valid, and which of them
+    // are still active.
     if (!user || !user.passwordHash) {
-      return { error: "Invalid email or password" };
+      return { error: LOGIN_FAILED };
     }
 
     const isPasswordValid = await verifyPassword(password, user.passwordHash);
     if (!isPasswordValid) {
-      return { error: "Incorrect password, try again" };
+      return { error: LOGIN_FAILED };
     }
 
     if (user.status === "INACTIVE") {
-      return { error: "User account is inactive" };
+      return { error: LOGIN_FAILED };
     }
 
     await prisma.user.update({
@@ -48,44 +55,12 @@ export async function loginUser(email: string, password: string) {
 export async function logoutUser() {
   try {
     await destroySession();
-    redirect("/login");
   } catch (error) {
     console.error("Logout error:", error);
     return { error: "An error occurred during logout" };
   }
-}
 
-export async function createUserAccount(
-  name: string,
-  email: string,
-  password: string,
-  role: "ADMIN" | "WORKER" | "VIEWER" = "VIEWER"
-) {
-  try {
-    // Check if user already exists
-    const existing = await prisma.user.findUnique({
-      where: { email },
-    });
-
-    if (existing) {
-      return { error: "User with this email already exists" };
-    }
-
-    const passwordHash = await hashPassword(password);
-
-    const user = await prisma.user.create({
-      data: {
-        name,
-        email,
-        passwordHash,
-        role,
-        status: "ACTIVE",
-      },
-    });
-
-    return { success: true, user: { id: user.id, name: user.name, email: user.email, role: user.role } };
-  } catch (error) {
-    console.error("User creation error:", error);
-    return { error: "Failed to create user account" };
-  }
+  // Must stay outside the try/catch: redirect() signals by throwing NEXT_REDIRECT,
+  // which a surrounding catch would swallow, silently cancelling the navigation.
+  redirect("/login");
 }

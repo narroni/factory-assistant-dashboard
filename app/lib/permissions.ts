@@ -25,7 +25,31 @@ export type Permission =
   | "change:material_status";
 
 const ROLE_PERMISSIONS: Record<UserRole, Permission[]> = {
-  ADMIN: [
+  SUPER_ADMIN: [
+    "view:dashboard",
+    "view:materials",
+    "view:products",
+    "view:orders",
+    "view:suppliers",
+    "view:reports",
+    "view:settings",
+    "create:material",
+    "edit:material",
+    "delete:material",
+    "change:material_status",
+    "create:product",
+    "edit:product",
+    "delete:product",
+    "create:order",
+    "edit:order",
+    "delete:order",
+    "change:order_status",
+    "create:supplier",
+    "edit:supplier",
+    "delete:supplier",
+    "manage:users",
+  ],
+  MANAGER: [
     "view:dashboard",
     "view:materials",
     "view:products",

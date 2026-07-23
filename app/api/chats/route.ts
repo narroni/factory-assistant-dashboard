@@ -11,7 +11,7 @@ export async function GET(req: NextRequest) {
   const filterUserId = url.searchParams.get("userId");
 
   const where =
-    user.role === "ADMIN"
+    user.role === "SUPER_ADMIN" || user.role === "MANAGER"
       ? filterUserId ? { userId: filterUserId } : {}
       : { userId: user.id };
 

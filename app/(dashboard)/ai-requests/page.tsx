@@ -5,7 +5,7 @@ import AIRequestsClient from "./AIRequestsClient";
 
 export default async function AIRequestsPage() {
   const user = await getSessionUser();
-  if (!user || user.role !== "ADMIN") return <AccessDenied />;
+  if (!user || (user.role !== "SUPER_ADMIN" && user.role !== "MANAGER")) return <AccessDenied />;
 
   const requests = await getAIRequests();
   return <AIRequestsClient initialRequests={requests} />;

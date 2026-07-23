@@ -2,8 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useAuth } from "../../hooks/useAuth";
-import { useLanguage } from "../../contexts/LanguageContext";
-import { t } from "../../lib/i18n";
+import { useTranslation } from "../../hooks/useTranslation";
 import { generateCSV, generateXLSX } from "../../lib/export";
 import { ModalShell } from "../../components/ModalShell";
 import { DeleteConfirm } from "../../components/DeleteConfirm";
@@ -32,6 +31,14 @@ const statusStyles: Record<MaterialStatus, string> = {
   "Out of Stock":"bg-red-900/50 text-red-300 border border-red-800",
 };
 
+// Mirrors the UI -> DB enum mapping used inside addMaterial() in actions.ts —
+// worker requests must carry the same fields the direct-save path persists.
+const STATUS_TO_DB: Record<MaterialStatus, string> = {
+  "In Stock": "IN_STOCK",
+  "Low Stock": "LOW_STOCK",
+  "Out of Stock": "OUT_OF_STOCK",
+};
+
 // ── Form state ────────────────────────────────────────────────────────────────
 
 type FormState = Omit<Material, "id">;
@@ -44,44 +51,49 @@ const EMPTY_FORM: FormState = {
 // ── Material Form Modal ───────────────────────────────────────────────────────
 
 function MaterialModal({
-  mode, form, onChange, onSave, onClose, language,
+  mode, form, onChange, onSave, onClose,
 }: {
   mode: "add" | "edit";
   form: FormState;
   onChange: <K extends keyof FormState>(k: K, v: FormState[K]) => void;
   onSave: () => void;
   onClose: () => void;
-  language: "en" | "de";
 }) {
+  const { t } = useTranslation();
+  const statusLabels: Record<MaterialStatus, string> = {
+    "In Stock": t("status.in_stock"),
+    "Low Stock": t("status.low_stock"),
+    "Out of Stock": t("status.out_of_stock"),
+  };
   const isValid = form.name.trim() && form.code.trim() && form.supplier.trim();
   return (
     <ModalShell
-      title={mode === "add" ? t("btn.add", language) + " Material" : t("btn.edit", language) + " Material"}
+      title={mode === "add" ? t("form.add_material") : t("form.edit_material")}
       subtitle={mode === "add" ? "Add a new raw material to inventory." : "Update material information."}
       onClose={onClose}
       footer={
         <>
-          <button onClick={onClose} className="px-4 py-2 text-sm text-zinc-400 hover:text-zinc-200 transition-colors">{t("btn.cancel", language)}</button>
+          <button onClick={onClose} className="px-4 py-2 text-sm text-zinc-400 hover:text-zinc-200 transition-colors">{t("delete.cancel")}</button>
           <button onClick={onSave} disabled={!isValid} className="px-5 py-2 bg-blue-600 hover:bg-blue-500 disabled:opacity-40 disabled:cursor-not-allowed text-white text-sm font-medium rounded-lg transition-colors">
-            {mode === "add" ? t("btn.add", language) : t("btn.save", language)}
+            {mode === "add" ? t("action.add_material") : t("btn.save")}
           </button>
         </>
       }
     >
       <div className="space-y-4">
         <div className="grid grid-cols-2 gap-4">
-          <div><Label>Material Name <span className="text-red-500">*</span></Label><TextInput value={form.name} onChange={(v) => onChange("name", v)} placeholder="e.g. Carbon Fiber Fabric" /></div>
-          <div><Label>Material Code <span className="text-red-500">*</span></Label><TextInput value={form.code} onChange={(v) => onChange("code", v)} placeholder="e.g. CF-600" /></div>
+          <div><Label>{t("form.label_name")} <span className="text-red-500">{t("form.required_field")}</span></Label><TextInput value={form.name} onChange={(v) => onChange("name", v)} placeholder="e.g. Carbon Fiber Fabric" /></div>
+          <div><Label>{t("form.label_code")} <span className="text-red-500">{t("form.required_field")}</span></Label><TextInput value={form.code} onChange={(v) => onChange("code", v)} placeholder="e.g. CF-600" /></div>
         </div>
         <div className="grid grid-cols-2 gap-4">
-          <div><Label>Category</Label><SelectInput value={form.category} onChange={(v) => onChange("category", v)} options={CATEGORIES} /></div>
-          <div><Label>Unit</Label><SelectInput value={form.unit} onChange={(v) => onChange("unit", v)} options={UNITS} /></div>
+          <div><Label>{t("form.label_category")}</Label><SelectInput value={form.category} onChange={(v) => onChange("category", v)} options={CATEGORIES} /></div>
+          <div><Label>{t("form.label_unit")}</Label><SelectInput value={form.unit} onChange={(v) => onChange("unit", v)} options={UNITS} /></div>
         </div>
         <div className="grid grid-cols-2 gap-4">
-          <div><Label>Quantity</Label><NumberInput value={form.quantity} onChange={(v) => onChange("quantity", v)} /></div>
-          <div><Label>Supplier <span className="text-red-500">*</span></Label><TextInput value={form.supplier} onChange={(v) => onChange("supplier", v)} placeholder="e.g. TorayComposite" /></div>
+          <div><Label>{t("table.qty")}</Label><NumberInput value={form.quantity} onChange={(v) => onChange("quantity", v)} /></div>
+          <div><Label>{t("form.label_supplier")} <span className="text-red-500">{t("form.required_field")}</span></Label><TextInput value={form.supplier} onChange={(v) => onChange("supplier", v)} placeholder="e.g. TorayComposite" /></div>
         </div>
-        <div><Label>Stock Status</Label><SelectInput value={form.status} onChange={(v) => onChange("status", v as MaterialStatus)} options={STATUSES} /></div>
+        <div><Label>{t("table.status")}</Label><SelectInput value={form.status} onChange={(v) => onChange("status", v as MaterialStatus)} options={STATUSES} labels={statusLabels} /></div>
       </div>
     </ModalShell>
   );
@@ -90,9 +102,15 @@ function MaterialModal({
 // ── Page ──────────────────────────────────────────────────────────────────────
 
 export default function MaterialsClient({ initialItems }: { initialItems: Material[] }) {
-  const { language } = useLanguage();
+  const { t } = useTranslation();
+  const statusLabels: Record<MaterialStatus, string> = {
+    "In Stock": t("status.in_stock"),
+    "Low Stock": t("status.low_stock"),
+    "Out of Stock": t("status.out_of_stock"),
+  };
   const { user } = useAuth();
   const isViewer = user?.role === "VIEWER";
+  const isWorker = user?.role === "WORKER";
   const [items, setItems]         = useState<Material[]>(initialItems);
   const [search, setSearch]       = useState("");
   const [categoryFilter, setCat]  = useState("All");
@@ -147,6 +165,33 @@ export default function MaterialsClient({ initialItems }: { initialItems: Materi
 
   async function saveItem() {
     if (!form.name.trim() || !form.code.trim()) return;
+
+    if (isWorker && formMode === "add") {
+      try {
+        const res = await fetch("/api/requests", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            type: "CREATE_MATERIAL",
+            payload: {
+              name: form.name,
+              code: form.code,
+              category: form.category,
+              quantity: form.quantity,
+              unit: form.unit,
+              status: STATUS_TO_DB[form.status],
+            },
+          }),
+        });
+        if (!res.ok) throw new Error("Request failed");
+        showToast("Request submitted — waiting for manager approval");
+        closeForm();
+      } catch {
+        showToast("Failed to submit request", "error");
+      }
+      return;
+    }
+
     try {
       if (formMode === "add") {
         const newMaterial = await addMaterial(form);
@@ -197,10 +242,10 @@ export default function MaterialsClient({ initialItems }: { initialItems: Materi
       {/* KPI strip */}
       <div className="grid grid-cols-4 gap-4">
         {[
-          { label: t("kpi.total_materials", language), value: counts.total,      accent: "text-zinc-100",    sf: "All"          },
-          { label: t("kpi.in_stock", language),        value: counts.inStock,    accent: "text-emerald-400", sf: "In Stock"     },
-          { label: t("kpi.low_stock", language),       value: counts.lowStock,   accent: "text-amber-400",   sf: "Low Stock"    },
-          { label: t("kpi.out_of_stock", language),    value: counts.outOfStock, accent: "text-red-400",     sf: "Out of Stock" },
+          { label: t("kpi.total_materials"), value: counts.total,      accent: "text-zinc-100",    sf: "All"          },
+          { label: t("kpi.in_stock"),        value: counts.inStock,    accent: "text-emerald-400", sf: "In Stock"     },
+          { label: t("kpi.low_stock"),       value: counts.lowStock,   accent: "text-amber-400",   sf: "Low Stock"    },
+          { label: t("kpi.out_of_stock"),    value: counts.outOfStock, accent: "text-red-400",     sf: "Out of Stock" },
         ].map((s) => (
           <button
             key={s.label}
@@ -223,7 +268,7 @@ export default function MaterialsClient({ initialItems }: { initialItems: Materi
             {categories.map((c) => <option key={c}>{c}</option>)}
           </select>
           <select value={statusFilter} onChange={(e) => setStatus(e.target.value)} className="bg-zinc-800 border border-zinc-700 text-zinc-300 text-xs px-3 py-2 rounded-lg focus:outline-none focus:border-blue-500 transition-colors">
-            {["All", ...STATUSES].map((s) => <option key={s}>{s}</option>)}
+            {["All", ...STATUSES].map((s) => <option key={s} value={s}>{s === "All" ? t("filter.all") : statusLabels[s as MaterialStatus]}</option>)}
           </select>
           <div className="ml-auto flex items-center gap-2">
             <span className="text-xs text-zinc-600">{filtered.length} of {items.length}</span>
@@ -241,9 +286,10 @@ export default function MaterialsClient({ initialItems }: { initialItems: Materi
                 ["Material Name", "Code", "Category", "Quantity", "Unit", "Supplier", "Status"],
                 "materials"
               )}
-              className="px-3 py-2 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 hover:text-zinc-100 text-xs font-medium rounded-lg transition-colors"
+              disabled={isViewer}
+              className={`px-3 py-2 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 hover:text-zinc-100 text-xs font-medium rounded-lg transition-colors ${isViewer ? "opacity-50 cursor-not-allowed" : ""}`}
             >
-              {t("btn.csv", language)}
+              {t("btn.csv")}
             </button>
             <button
               onClick={() => generateXLSX(
@@ -259,11 +305,12 @@ export default function MaterialsClient({ initialItems }: { initialItems: Materi
                 ["Material Name", "Code", "Category", "Quantity", "Unit", "Supplier", "Status"],
                 "materials"
               )}
-              className="px-3 py-2 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 hover:text-zinc-100 text-xs font-medium rounded-lg transition-colors"
+              disabled={isViewer}
+              className={`px-3 py-2 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 hover:text-zinc-100 text-xs font-medium rounded-lg transition-colors ${isViewer ? "opacity-50 cursor-not-allowed" : ""}`}
             >
-              {t("btn.pdf", language)}
+              {t("btn.pdf")}
             </button>
-            <AddButton onClick={openAdd} label={t("btn.add", language)} />
+            <AddButton onClick={openAdd} label={isWorker ? t("request.request_new_material") : t("btn.add")} disabled={isViewer} />
           </div>
         </div>
 
@@ -271,21 +318,21 @@ export default function MaterialsClient({ initialItems }: { initialItems: Materi
           <table className="w-full text-sm">
             <thead>
               <tr className="text-left text-xs text-zinc-500 uppercase tracking-wider border-b border-zinc-800">
-                <th className="px-6 py-3 font-medium">Material Name</th>
-                <th className="px-6 py-3 font-medium">Code</th>
-                <th className="px-6 py-3 font-medium">Category</th>
-                <th className="px-6 py-3 font-medium text-right">Quantity</th>
-                <th className="px-6 py-3 font-medium">Unit</th>
-                <th className="px-6 py-3 font-medium">Supplier</th>
-                <th className="px-6 py-3 font-medium">{t("status.in_stock", language).split(" ")[0]}</th>
+                <th className="px-6 py-3 font-medium">{t("form.label_name")}</th>
+                <th className="px-6 py-3 font-medium">{t("form.label_code")}</th>
+                <th className="px-6 py-3 font-medium">{t("form.label_category")}</th>
+                <th className="px-6 py-3 font-medium text-right">{t("table.quantity")}</th>
+                <th className="px-6 py-3 font-medium">{t("form.label_unit")}</th>
+                <th className="px-6 py-3 font-medium">{t("form.label_supplier")}</th>
+                <th className="px-6 py-3 font-medium">{t("table.status")}</th>
                 <th className="px-6 py-3 font-medium"></th>
               </tr>
             </thead>
             <tbody>
               {filtered.length === 0 ? (
                 <tr><td colSpan={8} className="px-6 py-16 text-center">
-                  <p className="text-zinc-500 text-sm">No materials match your filters.</p>
-                  <button onClick={() => { setSearch(""); setCat("All"); setStatus("All"); }} className="text-xs text-blue-400 hover:text-blue-300 mt-2">{t("btn.clear", language)}</button>
+                  <p className="text-zinc-500 text-sm">{t("empty.no_materials")}</p>
+                  <button onClick={() => { setSearch(""); setCat("All"); setStatus("All"); }} className="text-xs text-blue-400 hover:text-blue-300 mt-2">{t("filter.clear_filters")}</button>
                 </td></tr>
               ) : paged.map((m, i) => (
                 <tr key={m.id} className={`hover:bg-zinc-800/40 transition-colors ${i < paged.length - 1 ? "border-b border-zinc-800" : ""}`}>
@@ -301,14 +348,15 @@ export default function MaterialsClient({ initialItems }: { initialItems: Materi
                       options={STATUSES}
                       styles={statusStyles}
                       onChange={(v) => changeStatus(m.id, v)}
+                      labels={statusLabels}
                     />
                   </td>
                   <td className="px-6 py-3.5">
                     <div className="flex items-center gap-1">
-                      {!isViewer && (
+                      {!isWorker && (
                         <>
-                          <EditButton onClick={() => openEdit(m)} />
-                          <DeleteButton onClick={() => setDeleteId(m.id)} />
+                          <EditButton onClick={() => openEdit(m)} disabled={isViewer} />
+                          <DeleteButton onClick={() => setDeleteId(m.id)} disabled={isViewer} />
                         </>
                       )}
                     </div>
@@ -321,7 +369,7 @@ export default function MaterialsClient({ initialItems }: { initialItems: Materi
 
         <div className="flex items-center justify-between px-6 py-3 border-t border-zinc-800">
           <div className="flex items-center gap-2">
-            <span className="text-xs text-zinc-500">Items per page:</span>
+            <span className="text-xs text-zinc-500">{t("pagination.rows_per_page")}</span>
             <select
               value={pageSize}
               onChange={(e) => { setPageSize(Number(e.target.value)); setPage(1); }}
@@ -331,7 +379,7 @@ export default function MaterialsClient({ initialItems }: { initialItems: Materi
             </select>
           </div>
           <span className="text-xs text-zinc-500">
-            Showing {Math.min((page - 1) * pageSize + 1, filtered.length)}–{Math.min(page * pageSize, filtered.length)} of {filtered.length}
+            {t("pagination.showing")} {Math.min((page - 1) * pageSize + 1, filtered.length)}–{Math.min(page * pageSize, filtered.length)} {t("pagination.of")} {filtered.length}
           </span>
           <div className="flex items-center gap-1">
             <button
@@ -339,7 +387,7 @@ export default function MaterialsClient({ initialItems }: { initialItems: Materi
               disabled={page === 1}
               className="text-xs text-zinc-400 hover:text-zinc-200 disabled:opacity-40 disabled:cursor-not-allowed px-2 py-1 transition-colors"
             >
-              Previous
+              {t("pagination.previous")}
             </button>
             <span className="text-xs text-zinc-400">{page} / {totalPages}</span>
             <button
@@ -347,17 +395,17 @@ export default function MaterialsClient({ initialItems }: { initialItems: Materi
               disabled={page >= totalPages}
               className="text-xs text-zinc-400 hover:text-zinc-200 disabled:opacity-40 disabled:cursor-not-allowed px-2 py-1 transition-colors"
             >
-              Next
+              {t("pagination.next")}
             </button>
           </div>
         </div>
       </section>
 
       {formMode && (
-        <MaterialModal mode={formMode} form={form} onChange={setField} onSave={saveItem} onClose={closeForm} language={language} />
+        <MaterialModal mode={formMode} form={form} onChange={setField} onSave={saveItem} onClose={closeForm} />
       )}
       {deleteId && deletingItem && (
-        <DeleteConfirm title="Delete Material" itemName={deletingItem.name} onConfirm={confirmDelete} onClose={() => setDeleteId(null)} />
+        <DeleteConfirm title={t("delete.title_material")} itemName={deletingItem.name} onConfirm={confirmDelete} onClose={() => setDeleteId(null)} />
       )}
       <ToastList toasts={toasts} />
     </div>

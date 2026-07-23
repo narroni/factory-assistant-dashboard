@@ -3,11 +3,13 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { getCurrentUser } from "../../lib/auth-helpers";
-import { useToast } from "../../components/Toast";
+import { useToast, ToastList } from "../../components/Toast";
+import { useTranslation } from "../../hooks/useTranslation";
 import { changePassword } from "./actions";
 import type { User } from "@prisma/client";
 
 export default function ProfilePage() {
+  const { t } = useTranslation();
   const [user, setUser] = useState<Partial<User> | null>(null);
   const [loading, setLoading] = useState(true);
   const [changingPassword, setChangingPassword] = useState(false);
@@ -15,7 +17,7 @@ export default function ProfilePage() {
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const router = useRouter();
-  const { showToast } = useToast();
+  const { toasts, showToast } = useToast();
 
   useEffect(() => {
     (async () => {
@@ -97,7 +99,7 @@ export default function ProfilePage() {
                     ? "bg-emerald-900/50 text-emerald-300 border border-emerald-800"
                     : "bg-red-900/50 text-red-300 border border-red-800"
                 }`}>
-                  {user.status === "ACTIVE" ? "Active" : "Inactive"}
+                  {user.status === "ACTIVE" ? t("settings.status_active") : t("settings.status_inactive")}
                 </span>
                 <span className="text-xs font-medium px-3 py-1 rounded-full bg-blue-900/50 text-blue-300 border border-blue-800">
                   {user.role}
@@ -180,6 +182,8 @@ export default function ProfilePage() {
           </div>
         </div>
       </div>
+
+      <ToastList toasts={toasts} />
     </div>
   );
 }

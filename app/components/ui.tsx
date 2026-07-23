@@ -1,6 +1,14 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
+import { useTranslation } from "../hooks/useTranslation";
+
+// ── Translated text (for use inside server components) ────────────────────────
+
+export function T({ k }: { k: string }) {
+  const { t } = useTranslation();
+  return <>{t(k)}</>;
+}
 
 // ── Form field components ─────────────────────────────────────────────────────
 
@@ -54,6 +62,26 @@ export function NumberInput({
   max?: number;
   step?: string;
 }) {
+  // The raw input string is held locally so intermediate states survive typing.
+  // Deriving the displayed value straight from the number made "0" erase itself
+  // (0 rendered as "") and stripped the decimal point mid-keystroke, because
+  // parseFloat("1.") is 1 and re-rendering replaced "1." with "1".
+  const [raw, setRaw] = useState(value === 0 ? "" : String(value));
+
+  // Resync when the parent changes the value externally (e.g. the form is
+  // reopened on a different record). Uses React's "adjust state during render"
+  // pattern rather than an effect: no extra commit, and typing is never
+  // interrupted because the text is only replaced when it does not already
+  // parse to the incoming number.
+  const [lastValue, setLastValue] = useState(value);
+  if (value !== lastValue) {
+    setLastValue(value);
+    const parsed = parseFloat(raw);
+    if (parsed !== value && !(value === 0 && raw === "")) {
+      setRaw(value === 0 ? "" : String(value));
+    }
+  }
+
   return (
     <div>
       <input
@@ -61,8 +89,24 @@ export function NumberInput({
         step={step}
         min={min}
         max={max}
-        value={value === 0 ? "" : value}
-        onChange={(e) => onChange(parseFloat(e.target.value) || 0)}
+        value={raw}
+        onChange={(e) => {
+          const next = e.target.value;
+          setRaw(next);
+          const parsed = parseFloat(next);
+          if (!isNaN(parsed)) onChange(parsed);
+          else if (next === "" || next === "-") onChange(0);
+        }}
+        onBlur={() => {
+          const parsed = parseFloat(raw);
+          if (isNaN(parsed)) {
+            setRaw("");
+            onChange(0);
+          } else {
+            setRaw(String(parsed));
+            onChange(parsed);
+          }
+        }}
         placeholder={placeholder ?? "0"}
         className={inputCls}
       />
@@ -75,10 +119,12 @@ export function SelectInput({
   value,
   onChange,
   options,
+  labels,
 }: {
   value: string;
   onChange: (v: string) => void;
   options: readonly string[];
+  labels?: { [key: string]: string };
 }) {
   return (
     <select
@@ -87,7 +133,7 @@ export function SelectInput({
       className={inputCls}
     >
       {options.map((o) => (
-        <option key={o}>{o}</option>
+        <option key={o} value={o}>{labels?.[o] ?? o}</option>
       ))}
     </select>
   );
@@ -100,11 +146,13 @@ export function InlineStatusSelect<T extends string>({
   options,
   styles,
   onChange,
+  labels,
 }: {
   value: T;
   options: readonly T[];
   styles: { [key: string]: string };
   onChange: (v: T) => void;
+  labels?: { [key: string]: string };
 }) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
@@ -130,7 +178,7 @@ export function InlineStatusSelect<T extends string>({
           styles[value] ?? "bg-zinc-800 text-zinc-400 border border-zinc-700"
         }`}
       >
-        {value}
+        {labels?.[value] ?? value}
         <svg
           width="9"
           height="9"
@@ -155,7 +203,7 @@ export function InlineStatusSelect<T extends string>({
               <span
                 className={`inline-block w-1.5 h-1.5 rounded-full ${o === value ? "bg-blue-400" : "bg-zinc-700"}`}
               />
-              {o}
+              {labels?.[o] ?? o}
             </button>
           ))}
         </div>
@@ -200,11 +248,12 @@ export function SearchInput({
   );
 }
 
-export function AddButton({ onClick, label }: { onClick: () => void; label: string }) {
+export function AddButton({ onClick, label, disabled }: { onClick: () => void; label: string; disabled?: boolean }) {
   return (
     <button
       onClick={onClick}
-      className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white text-xs font-medium rounded-lg transition-colors"
+      disabled={disabled}
+      className={`flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white text-xs font-medium rounded-lg transition-colors ${disabled ? "opacity-50 cursor-not-allowed" : ""}`}
     >
       <svg
         width="14"
@@ -224,24 +273,28 @@ export function AddButton({ onClick, label }: { onClick: () => void; label: stri
 
 // ── Table row action buttons ───────────────────────────────────────────────────
 
-export function EditButton({ onClick }: { onClick: () => void }) {
+export function EditButton({ onClick, disabled }: { onClick: () => void; disabled?: boolean }) {
+  const { t } = useTranslation();
   return (
     <button
       onClick={onClick}
-      className="text-xs text-zinc-500 hover:text-zinc-200 px-2.5 py-1 rounded-md hover:bg-zinc-700 transition-colors"
+      disabled={disabled}
+      className={`text-xs text-zinc-500 hover:text-zinc-200 px-2.5 py-1 rounded-md hover:bg-zinc-700 transition-colors ${disabled ? "opacity-50 cursor-not-allowed" : ""}`}
     >
-      Edit
+      {t("action.edit")}
     </button>
   );
 }
 
-export function DeleteButton({ onClick }: { onClick: () => void }) {
+export function DeleteButton({ onClick, disabled }: { onClick: () => void; disabled?: boolean }) {
+  const { t } = useTranslation();
   return (
     <button
       onClick={onClick}
-      className="text-xs text-red-500 hover:text-red-400 px-2.5 py-1 rounded-md hover:bg-zinc-700 transition-colors"
+      disabled={disabled}
+      className={`text-xs text-red-500 hover:text-red-400 px-2.5 py-1 rounded-md hover:bg-zinc-700 transition-colors ${disabled ? "opacity-50 cursor-not-allowed" : ""}`}
     >
-      Delete
+      {t("action.delete")}
     </button>
   );
 }

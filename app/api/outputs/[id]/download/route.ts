@@ -21,7 +21,7 @@ export async function GET(_req: NextRequest, ctx: Ctx) {
   if (!executed) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
   // RBAC: User can download their own outputs or admins can download any
-  if (user.role !== "ADMIN" && executed.request.createdByUserId !== user.id) {
+  if (user.role !== "SUPER_ADMIN" && user.role !== "MANAGER" && executed.request.createdByUserId !== user.id) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 

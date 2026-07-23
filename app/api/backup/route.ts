@@ -1,12 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
-import { exec } from "child_process";
+import { execFile } from "child_process";
 import { promisify } from "util";
 import { stat } from "fs/promises";
 import path from "path";
 import { prisma } from "../../lib/prisma";
 import { getCurrentUser } from "../../lib/auth-helpers";
 
-const execAsync = promisify(exec);
+const execFileAsync = promisify(execFile);
+
+// pg_dump output is captured through stdout; the default 1 MB buffer would
+// truncate any non-trivial dump.
+const MAX_DUMP_BUFFER = 256 * 1024 * 1024;
 
 const BACKUP_DIR = path.join(process.cwd(), "backups");
 const PG_DUMP = "/Applications/Postgres.app/Contents/Versions/latest/bin/pg_dump";
@@ -29,7 +33,7 @@ function parseDatabaseUrl(url: string) {
 export async function GET() {
   try {
     const user = await getCurrentUser();
-    if (!user || user.role !== "ADMIN") {
+    if (!user || user.role !== "SUPER_ADMIN") {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
@@ -48,11 +52,12 @@ export async function GET() {
 export async function POST(req: NextRequest) {
   try {
     const user = await getCurrentUser();
-    if (!user || user.role !== "ADMIN") {
+    if (!user || user.role !== "SUPER_ADMIN") {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
-    const body = await req.json().catch(() => ({}));
+    const body = await req.json().catch(() => null);
+    if (!body) return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
     const note: string = body.note || "";
 
     const db = parseDatabaseUrl(process.env.DATABASE_URL!);
@@ -63,9 +68,25 @@ export async function POST(req: NextRequest) {
     const filename = `backup_${timestamp}.sql`;
     const filepath = path.join(BACKUP_DIR, filename);
 
-    const cmd = `PGPASSWORD="${db.password}" "${PG_DUMP}" -h ${db.host} -p ${db.port} -U ${db.user} -F p --no-owner --no-acl ${db.database}`;
-
-    const { stdout } = await execAsync(cmd);
+    // argv array: no shell, so credentials and identifiers can never be parsed
+    // as shell syntax. The password goes through the environment, never argv
+    // (argv is world-readable via ps).
+    const { stdout } = await execFileAsync(
+      PG_DUMP,
+      [
+        "-h", db.host,
+        "-p", db.port,
+        "-U", db.user,
+        "-F", "p",
+        "--no-owner",
+        "--no-acl",
+        db.database,
+      ],
+      {
+        env: { ...process.env, PGPASSWORD: db.password },
+        maxBuffer: MAX_DUMP_BUFFER,
+      },
+    );
 
     const { writeFile, mkdir } = await import("fs/promises");
     await mkdir(BACKUP_DIR, { recursive: true });
@@ -84,8 +105,9 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json(record, { status: 201 });
   } catch (error) {
-    console.error("Backup create error:", error);
-    const message = error instanceof Error ? error.message : "Failed to create backup";
-    return NextResponse.json({ error: message }, { status: 500 });
+    // Log in full server-side; never return the message to the client — pg_dump
+    // failures echo the invocation, which previously leaked DB credentials.
+    console.error("[backup] pg_dump failed:", error);
+    return NextResponse.json({ error: "Backup failed. Check server logs." }, { status: 500 });
   }
 }

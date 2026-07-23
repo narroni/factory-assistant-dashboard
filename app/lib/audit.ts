@@ -2,9 +2,18 @@
 
 import { prisma } from "./prisma";
 import { getCurrentUser } from "./auth-helpers";
+import { getSessionUser } from "./session";
 
 type AuditAction = "CREATE" | "UPDATE" | "DELETE";
 
+// Called server-side only after authenticated mutations. Deliberately does not
+// require a session of its own — it resolves the current user purely to
+// attribute the entry, and must never block the mutation that triggered it.
+//
+// NOTE: because this module is "use server", this function is still reachable
+// as a public endpoint, so audit entries remain forgeable by an anonymous
+// caller. Closing that requires moving it out of the "use server" module rather
+// than adding a guard here. See the audit report (C4).
 export async function logAuditEvent(
   entity: string,
   entityId: string,
@@ -41,6 +50,8 @@ export async function getAuditLogs(filters?: {
   limit?: number;
   offset?: number;
 }) {
+  const user = await getSessionUser();
+  if (!user) throw new Error("Authentication required");
   try {
     const where: any = {};
 
