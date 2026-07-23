@@ -23,24 +23,38 @@ export type SessionUser = {
  * `sessions`, which makes revocation a single DELETE.
  */
 export async function createSession(userId: string): Promise<void> {
+  // Get cookie store FIRST before any async operations (Next.js requirement)
+  const cookieStore = await cookies();
+
   const token = randomBytes(32).toString("base64url");
   const expiresAt = new Date(Date.now() + SESSION_MAX_AGE * 1000);
 
-  // One active session per user: issuing a new one invalidates any previous.
-  await prisma.session.deleteMany({ where: { userId } });
+  try {
+    // One active session per user: issuing a new one invalidates any previous.
+    await prisma.session.deleteMany({ where: { userId } });
 
-  await prisma.session.create({
-    data: { id: token, userId, expiresAt },
-  });
+    await prisma.session.create({
+      data: { id: token, userId, expiresAt },
+    });
+  } catch (dbError) {
+    console.error("Session DB error:", dbError);
+    console.error("Session DB error details:", JSON.stringify(dbError, Object.getOwnPropertyNames(dbError)));
+    throw dbError;
+  }
 
-  const cookieStore = await cookies();
-  cookieStore.set(SESSION_COOKIE, token, {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
-    sameSite: "lax",
-    maxAge: SESSION_MAX_AGE,
-    path: "/",
-  });
+  try {
+    cookieStore.set(SESSION_COOKIE, token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax",
+      maxAge: SESSION_MAX_AGE,
+      path: "/",
+    });
+  } catch (cookieError) {
+    console.error("Cookie set error:", cookieError);
+    console.error("Cookie set error details:", JSON.stringify(cookieError, Object.getOwnPropertyNames(cookieError)));
+    throw cookieError;
+  }
 }
 
 /**

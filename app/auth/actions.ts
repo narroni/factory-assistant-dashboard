@@ -44,10 +44,18 @@ export async function loginUser(email: string, password: string) {
       data: { lastLoginAt: new Date() },
     });
 
-    await createSession(user.id);
+    try {
+      await createSession(user.id);
+    } catch (sessionError) {
+      console.error("Session creation failed:", sessionError);
+      console.error("Session error details:", JSON.stringify(sessionError, Object.getOwnPropertyNames(sessionError)));
+      return { error: "Session creation failed" };
+    }
+
     return { success: true };
   } catch (error) {
     console.error("Login error:", error);
+    console.error("Login error details:", JSON.stringify(error, Object.getOwnPropertyNames(error)));
     return { error: "An error occurred during login" };
   }
 }
