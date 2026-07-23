@@ -11,7 +11,6 @@ export type FactoryContext = {
   asOf: string;
   _notes: string[];
   inventory: {
-    totalMaterials: number;
     inStock: number;
     lowStock: number;
     outOfStock: number;
@@ -20,7 +19,6 @@ export type FactoryContext = {
     categoryBreakdown: { category: string; count: number; totalQty: number }[];
   };
   orders: {
-    total: number;
     pending: number;
     inProduction: number;
     delayed: number;
@@ -30,15 +28,14 @@ export type FactoryContext = {
     recentOrders: {
       orderNumber: string;
       customer: string;
-      lines: string;       // e.g. "RDG600/1,25 ×5000, RDL002 ×2000"
-      qty: number;         // total pcs across lines (or legacy qty)
+      lines: string;
+      qty: number;
       status: string;
       dueDate: string;
       valueEur: number;
     }[];
   };
   suppliers: {
-    total: number;
     active: number;
     warning: number;
     topByOnTime: {
@@ -50,7 +47,6 @@ export type FactoryContext = {
     }[];
   };
   products: {
-    total: number;
     items: {
       articleCode: string;
       productName: string;
@@ -81,7 +77,6 @@ export type FactoryContext = {
     maxPayloadKg: number;
   }[];
   customers: {
-    total: number;
     list: { name: string; orderCount: number }[];
   };
 };
@@ -126,7 +121,7 @@ export async function loadFactoryContext(): Promise<FactoryContext> {
     prisma.material.groupBy({ by: ["category"], _count: { id: true }, _sum: { quantity: true } }),
     // Order status counts
     prisma.order.groupBy({ by: ["status"], _count: { id: true } }),
-    // Open orders with lines (exclude demo orders without customerId)
+    // Open orders with lines (exclude demo orders without customerId, limit to 10)
     prisma.order.findMany({
       where: {
         status: { in: ["PENDING", "IN_PRODUCTION", "DELAYED"] },
@@ -138,30 +133,32 @@ export async function loadFactoryContext(): Promise<FactoryContext> {
         lines: { select: { articleCode: true, qty: true } },
       },
       orderBy: { dueDate: "asc" },
-      take: 20,
+      take: 10,
     }),
     // Supplier counts
     prisma.supplier.groupBy({ by: ["status"], _count: { id: true } }),
-    // Top suppliers
+    // Top suppliers (limit to 5)
     prisma.supplier.findMany({
       where: { status: { not: "INACTIVE" } },
       select: { name: true, onTimeRate: true, leadTimeDays: true, country: true, status: true },
       orderBy: { onTimeRate: "desc" },
-      take: 10,
+      take: 5,
     }),
-    // BladeProductSpec — the real product catalog
+    // BladeProductSpec — the real product catalog (limit to 20 most recent)
     prisma.bladeProductSpec.findMany({
       include: { crateType: true },
-      orderBy: { articleCode: "asc" },
+      orderBy: { updatedAt: "desc" },
+      take: 20,
     }),
     // Crate types
     prisma.crateType.findMany({ orderBy: { code: "asc" } }),
     // Container types
     prisma.containerType.findMany({ orderBy: { name: "asc" } }),
-    // Customers
+    // Customers (limit to 10)
     prisma.customer.findMany({
       select: { name: true, _count: { select: { orders: true } } },
       orderBy: { name: "asc" },
+      take: 10,
     }),
   ]);
 
@@ -186,7 +183,6 @@ export async function loadFactoryContext(): Promise<FactoryContext> {
       totalSuppliers === 0 ? "No suppliers have been entered yet. Do not invent or assume supplier data." : null,
     ] as (string | null)[]).filter((n): n is string => n !== null),
     inventory: {
-      totalMaterials,
       inStock: matCount("IN_STOCK"),
       lowStock: matCount("LOW_STOCK"),
       outOfStock: matCount("OUT_OF_STOCK"),
@@ -204,7 +200,6 @@ export async function loadFactoryContext(): Promise<FactoryContext> {
       })),
     },
     orders: {
-      total: orderStats.reduce((s, r) => s + r._count.id, 0),
       pending: orderCount("PENDING"),
       inProduction: orderCount("IN_PRODUCTION"),
       delayed: orderCount("DELAYED"),
@@ -228,7 +223,6 @@ export async function loadFactoryContext(): Promise<FactoryContext> {
       }),
     },
     suppliers: {
-      total: totalSuppliers,
       active: supplierCount("ACTIVE"),
       warning: supplierCount("WARNING"),
       topByOnTime: topSuppliers.map((s) => ({
@@ -238,7 +232,6 @@ export async function loadFactoryContext(): Promise<FactoryContext> {
       })),
     },
     products: {
-      total: bladeProducts.length,
       items: bladeProducts.map((p) => ({
         articleCode: p.articleCode,
         productName: p.productName,
@@ -269,7 +262,6 @@ export async function loadFactoryContext(): Promise<FactoryContext> {
       maxPayloadKg: c.maxPayloadKg,
     })),
     customers: {
-      total: customers.length,
       list: customers.map((c) => ({ name: c.name, orderCount: c._count.orders })),
     },
   };

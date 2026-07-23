@@ -10,7 +10,7 @@ export async function GET(req: NextRequest) {
   const pageSize = parseInt(req.nextUrl.searchParams.get("pageSize") ?? "10", 10);
 
   const where =
-    user.role === "ADMIN"
+    user.role === "SUPER_ADMIN" || user.role === "MANAGER"
       ? {}
       : { request: { createdByUserId: user.id } };
 

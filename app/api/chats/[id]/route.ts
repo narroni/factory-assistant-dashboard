@@ -19,7 +19,7 @@ export async function GET(_req: NextRequest, ctx: Ctx) {
   });
 
   if (!chat) return NextResponse.json({ error: "Not found" }, { status: 404 });
-  if (user.role !== "ADMIN" && chat.userId !== user.id)
+  if (user.role !== "SUPER_ADMIN" && user.role !== "MANAGER" && chat.userId !== user.id)
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
   return NextResponse.json(chat);
@@ -33,7 +33,7 @@ export async function PATCH(req: NextRequest, ctx: Ctx) {
   const { id } = await ctx.params;
   const chat = await prisma.assistantChat.findUnique({ where: { id } });
   if (!chat) return NextResponse.json({ error: "Not found" }, { status: 404 });
-  if (user.role !== "ADMIN" && chat.userId !== user.id)
+  if (user.role !== "SUPER_ADMIN" && user.role !== "MANAGER" && chat.userId !== user.id)
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
   const body = await req.json().catch(() => ({}));
@@ -52,7 +52,7 @@ export async function DELETE(_req: NextRequest, ctx: Ctx) {
   const { id } = await ctx.params;
   const chat = await prisma.assistantChat.findUnique({ where: { id } });
   if (!chat) return NextResponse.json({ error: "Not found" }, { status: 404 });
-  if (user.role !== "ADMIN" && chat.userId !== user.id)
+  if (user.role !== "SUPER_ADMIN" && user.role !== "MANAGER" && chat.userId !== user.id)
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
   await prisma.assistantChat.delete({ where: { id } });

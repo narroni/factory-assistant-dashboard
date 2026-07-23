@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { getCurrentUser } from "../../lib/auth-helpers";
 import { useLanguage } from "../../contexts/LanguageContext";
+import { useTranslation } from "../../hooks/useTranslation";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -14,17 +15,6 @@ type Proposal = {
   reasoning: string;
 };
 
-type AssistantApiResponse = {
-  question: string;
-  answer: string;
-  ollamaUsed: boolean;
-  fallbackReason?: string;
-  proposals: Proposal[];
-  savedRequestIds: string[];
-  chatId?: string;
-  respondedAt: string;
-};
-
 type ChatMessage = {
   id?: string;
   role: "user" | "assistant";
@@ -32,7 +22,7 @@ type ChatMessage = {
   ollamaUsed?: boolean;
   proposals?: Proposal[];
   createdAt?: string;
-  status?: "PENDING" | "COMPLETED" | "FAILED";
+  status?: "PENDING" | "COMPLETED" | "FAILED" | "STREAMING";
   // local-only
   loading?: boolean;
   respondedAt?: string;
@@ -179,6 +169,7 @@ function ProposalCard({
   const [loading, setLoading] = useState(!!requestId);
   const [executing, setExecuting] = useState(false);
   const [execError, setExecError] = useState<string | null>(null);
+  const { t } = useTranslation();
 
   const fetchStatus = useCallback(async () => {
     if (!requestId) return;
@@ -255,10 +246,10 @@ function ProposalCard({
 
   function getStatusLabel(): string {
     if (loading) return "…";
-    if (status === "PENDING") return isAdmin ? "Pending approval" : "Waiting for admin approval";
-    if (status === "APPROVED") return "Approved";
-    if (status === "REJECTED") return "Rejected";
-    if (status === "EXECUTED") return "Executed";
+    if (status === "PENDING") return isAdmin ? t("ai_request.status_pending_approval") : t("ai_request.status_waiting_admin_approval");
+    if (status === "APPROVED") return t("ai_request.status_approved");
+    if (status === "REJECTED") return t("ai_request.status_rejected");
+    if (status === "EXECUTED") return t("ai_request.status_executed");
     return status;
   }
 
@@ -378,9 +369,11 @@ function UserBubble({ text }: { text: string }) {
 
 function AssistantBubble({ msg, onRetry, isAdmin }: { msg: ChatMessage; onRetry?: (msgId: string) => void; isAdmin: boolean }) {
   const isPending = msg.status === "PENDING";
+  const isStreaming = msg.status === "STREAMING";
   const isFailed = msg.status === "FAILED";
 
-  if (isPending) {
+  // Thinking indicator: explicit PENDING, or streaming before the first token arrives
+  if (isPending || (isStreaming && !msg.content)) {
     return (
       <div className="space-y-2">
         <div className="flex items-center gap-2">
@@ -428,8 +421,16 @@ function AssistantBubble({ msg, onRetry, isAdmin }: { msg: ChatMessage; onRetry?
         <div className="w-5 h-5 rounded bg-zinc-700 flex items-center justify-center text-zinc-300 shrink-0" style={{ fontSize: 10 }}>A</div>
         <span className="text-xs text-zinc-500">Assistant</span>
       </div>
-      <p className="text-sm text-zinc-200 leading-relaxed pl-8 whitespace-pre-line">{msg.content}</p>
-      {msg.proposals && msg.proposals.length > 0 && (
+      <p className="text-sm text-zinc-200 leading-relaxed pl-8 whitespace-pre-line">
+        {msg.content}
+        {isStreaming && (
+          <span
+            className="inline-block w-[2px] h-[1.05em] bg-zinc-300 ml-0.5 align-text-bottom animate-pulse"
+            aria-hidden
+          />
+        )}
+      </p>
+      {!isStreaming && msg.proposals && msg.proposals.length > 0 && (
         <div className="pl-8 space-y-2">
           {msg.proposals.map((p, i) => (
             <ProposalCard key={i} proposal={p} requestId={msg.savedRequestIds?.[i]} isAdmin={isAdmin} />
@@ -442,7 +443,7 @@ function AssistantBubble({ msg, onRetry, isAdmin }: { msg: ChatMessage; onRetry?
           )}
         </div>
       )}
-      {(msg.respondedAt || msg.createdAt) && (
+      {!isStreaming && (msg.respondedAt || msg.createdAt) && (
         <p className="text-xs text-zinc-600 pl-8">{new Date(msg.respondedAt ?? msg.createdAt!).toLocaleTimeString()}</p>
       )}
     </div>
@@ -560,6 +561,11 @@ export default function AssistantPage() {
   const bottomRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
+  // Streaming state
+  const abortControllerRef = useRef<AbortController | null>(null);
+  const [streaming, setStreaming] = useState(false);
+  const [cancelled, setCancelled] = useState(false);
+
   // localStorage key scoped to user
   function lsKey(userId: string) { return `assistant_active_chat_${userId}`; }
 
@@ -596,7 +602,7 @@ export default function AssistantPage() {
       const u = await getCurrentUser();
       if (!u) { router.replace("/login"); return; }
       userIdRef.current = u.id;
-      setIsAdmin(u.role === "ADMIN");
+      setIsAdmin(u.role === "SUPER_ADMIN" || u.role === "MANAGER");
 
       const chatList = await loadChats();
 
@@ -662,6 +668,16 @@ export default function AssistantPage() {
     }
   }
 
+  // Replace the trailing (streaming) assistant message in place
+  function patchLastAssistant(patch: Partial<ChatMessage>) {
+    setMessages((prev) => {
+      const next = [...prev];
+      const last = next[next.length - 1];
+      if (last && last.role === "assistant") next[next.length - 1] = { ...last, ...patch };
+      return next;
+    });
+  }
+
   async function send(question: string) {
     const q = question.trim();
     if (!q || sending) return;
@@ -677,53 +693,106 @@ export default function AssistantPage() {
 
     setInput("");
     setSending(true);
+    setStreaming(true);
+    setCancelled(false);
+
     const userMsg: ChatMessage = { role: "user", content: q };
-    const loadingMsg: ChatMessage = { role: "assistant", content: "", status: "PENDING" };
-    setMessages((prev) => [...prev, userMsg, loadingMsg]);
+    const streamingMsg: ChatMessage = { role: "assistant", content: "", status: "STREAMING" };
+    setMessages((prev) => [...prev, userMsg, streamingMsg]);
+
+    const controller = new AbortController();
+    abortControllerRef.current = controller;
+
+    let accumulated = "";
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    let doneMeta: any = null;
 
     try {
       const res = await fetch("/api/assistant", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ question: q, chatId, language }),
+        signal: controller.signal,
       });
-      const data: AssistantApiResponse = await res.json();
+      if (!res.ok || !res.body) throw new Error(`HTTP ${res.status}`);
 
-      // Update chat title in sidebar
+      // Optimistic sidebar title update
       setChats((prev) => prev.map((c) =>
-        c.id === chatId
-          ? { ...c, title: c.title === "New Chat" ? q.slice(0, 60) : c.title, updatedAt: data.respondedAt }
-          : c
+        c.id === chatId ? { ...c, title: c.title === "New Chat" ? q.slice(0, 60) : c.title } : c
       ));
 
-      const assistantMsg: ChatMessage = {
-        role: "assistant",
-        content: data.answer,
-        ollamaUsed: data.ollamaUsed,
-        proposals: data.proposals,
-        savedRequestIds: data.savedRequestIds,
-        respondedAt: data.respondedAt,
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = "";
+
+      streamLoop: while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+
+        // SSE frames are separated by a blank line
+        let sep: number;
+        while ((sep = buffer.indexOf("\n\n")) !== -1) {
+          const frame = buffer.slice(0, sep);
+          buffer = buffer.slice(sep + 2);
+          if (!frame.startsWith("data:")) continue;
+          const payload = frame.slice(frame.indexOf(":") + 1).trim();
+          if (payload === "[DONE]") break streamLoop;
+
+          let evt: { token?: string; done?: boolean; [k: string]: unknown };
+          try { evt = JSON.parse(payload); } catch { continue; }
+
+          if (evt.done) {
+            doneMeta = evt;
+          } else if (typeof evt.token === "string") {
+            accumulated += evt.token;
+            patchLastAssistant({ content: accumulated, status: "STREAMING" });
+          }
+        }
+      }
+
+      // Finalize with the server's metadata (canonical answer, proposals, ids)
+      patchLastAssistant({
+        id: doneMeta?.messageId ?? undefined,
+        content: doneMeta?.answer ?? accumulated,
+        ollamaUsed: doneMeta?.ollamaUsed,
+        proposals: doneMeta?.proposals,
+        savedRequestIds: doneMeta?.savedRequestIds ?? [],
+        respondedAt: doneMeta?.respondedAt,
         status: "COMPLETED",
-      };
-      setMessages((prev) => {
-        const next = [...prev];
-        next[next.length - 1] = assistantMsg;
-        return next;
       });
-    } catch {
-      setMessages((prev) => {
-        const next = [...prev];
-        next[next.length - 1] = {
-          role: "assistant", content: "Something went wrong. Please try again.",
-          ollamaUsed: false,
-          status: "FAILED",
-        };
-        return next;
-      });
+      if (doneMeta?.respondedAt) {
+        setChats((prev) => prev.map((c) => c.id === chatId ? { ...c, updatedAt: doneMeta.respondedAt } : c));
+      }
+    } catch (err) {
+      const aborted = err instanceof DOMException && err.name === "AbortError";
+      if (accumulated.trim().length > 0) {
+        // Keep whatever partial text arrived — never blank the bubble
+        patchLastAssistant({ content: accumulated, status: "COMPLETED" });
+      } else if (aborted) {
+        // Cancelled before any token — drop the empty assistant bubble
+        setMessages((prev) => {
+          const next = [...prev];
+          if (next[next.length - 1]?.role === "assistant" && !next[next.length - 1].content) next.pop();
+          return next;
+        });
+      } else {
+        patchLastAssistant({ content: "Something went wrong. Please try again.", ollamaUsed: false, status: "FAILED" });
+      }
+      if (aborted) {
+        setCancelled(true);
+        setTimeout(() => setCancelled(false), 2000);
+      }
     } finally {
+      abortControllerRef.current = null;
+      setStreaming(false);
       setSending(false);
       inputRef.current?.focus();
     }
+  }
+
+  function stopStreaming() {
+    abortControllerRef.current?.abort();
   }
 
   async function retryMessage(msgId: string) {
@@ -747,6 +816,9 @@ export default function AssistantPage() {
 
     const interval = setInterval(async () => {
       setMessages((prev) => {
+        // Design decision #2: never poll while a message is actively streaming —
+        // the DB row is still PENDING/empty and would clobber the typewriter text.
+        if (prev.some((m) => m.status === "STREAMING")) return prev;
         // Only poll if there are PENDING messages
         if (!prev.some((m) => m.status === "PENDING")) return prev;
 
@@ -882,18 +954,34 @@ export default function AssistantPage() {
                 className="flex-1 bg-transparent text-sm text-zinc-100 placeholder:text-zinc-600 resize-none focus:outline-none leading-relaxed disabled:opacity-50"
                 style={{ maxHeight: 140 }}
               />
-              <button
-                onClick={() => send(input)}
-                disabled={!input.trim() || sending}
-                className="shrink-0 w-8 h-8 flex items-center justify-center bg-blue-600 hover:bg-blue-500 disabled:bg-zinc-700 disabled:text-zinc-500 text-white rounded-lg transition-colors"
-              >
-                {sending
-                  ? <span className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin"/>
-                  : <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
-                }
-              </button>
+              {streaming ? (
+                <button
+                  onClick={stopStreaming}
+                  title="Stop generating"
+                  className="shrink-0 w-8 h-8 flex items-center justify-center bg-red-600 hover:bg-red-500 text-white rounded-lg transition-colors"
+                >
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><rect x="5" y="5" width="14" height="14" rx="2"/></svg>
+                </button>
+              ) : (
+                <button
+                  onClick={() => send(input)}
+                  disabled={!input.trim() || sending}
+                  className="shrink-0 w-8 h-8 flex items-center justify-center bg-blue-600 hover:bg-blue-500 disabled:bg-zinc-700 disabled:text-zinc-500 text-white rounded-lg transition-colors"
+                >
+                  {sending
+                    ? <span className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin"/>
+                    : <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+                  }
+                </button>
+              )}
             </div>
-            <p className="text-xs text-zinc-600 text-center mt-2">Enter to send · Shift+Enter for new line</p>
+            <p className="text-xs text-center mt-2 h-4">
+              {cancelled
+                ? <span className="text-red-400">Response cancelled</span>
+                : streaming
+                  ? <span className="text-zinc-500">Generating… click stop to cancel</span>
+                  : <span className="text-zinc-600">Enter to send · Shift+Enter for new line</span>}
+            </p>
           </div>
         </div>
       </div>

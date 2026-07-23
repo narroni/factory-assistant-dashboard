@@ -59,7 +59,7 @@ export async function createUserAccount(
   name: string,
   email: string,
   password: string,
-  role: "ADMIN" | "WORKER" | "VIEWER" = "VIEWER"
+  role: "SUPER_ADMIN" | "MANAGER" | "WORKER" | "VIEWER" = "VIEWER"
 ) {
   try {
     // Check if user already exists

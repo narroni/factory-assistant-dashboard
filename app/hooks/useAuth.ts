@@ -38,15 +38,15 @@ export function usePermission(permission: Permission) {
 
 export function useCanDelete() {
   const { user } = useAuth();
-  return user?.role === "ADMIN";
+  return user?.role === "SUPER_ADMIN" || user?.role === "MANAGER";
 }
 
 export function useCanEdit() {
   const { user } = useAuth();
-  return user?.role === "ADMIN" || user?.role === "WORKER";
+  return user?.role === "SUPER_ADMIN" || user?.role === "MANAGER" || user?.role === "WORKER";
 }
 
 export function useCanCreate() {
   const { user } = useAuth();
-  return user?.role === "ADMIN" || user?.role === "WORKER";
+  return user?.role === "SUPER_ADMIN" || user?.role === "MANAGER" || user?.role === "WORKER";
 }

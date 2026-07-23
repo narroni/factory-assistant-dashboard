@@ -6,7 +6,7 @@ import { prisma } from "../../lib/prisma";
 export async function GET() {
   const user = await getSessionUser();
   if (!user) return NextResponse.json({ error: "Unauthenticated" }, { status: 401 });
-  if (user.role !== "ADMIN") return NextResponse.json({ error: "Admin only" }, { status: 403 });
+  if (user.role !== "SUPER_ADMIN" && user.role !== "MANAGER") return NextResponse.json({ error: "Admin only" }, { status: 403 });
 
   const logs = await prisma.aIInteractionLog.findMany({
     include: { user: { select: { name: true, email: true } } },

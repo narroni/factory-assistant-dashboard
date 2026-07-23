@@ -17,7 +17,7 @@ export async function getChats(userFilter?: string): Promise<ChatSummary[]> {
   if (!user) return [];
 
   const where =
-    user.role === "ADMIN"
+    user.role === "SUPER_ADMIN" || user.role === "MANAGER"
       ? userFilter ? { userId: userFilter } : {}
       : { userId: user.id };
 

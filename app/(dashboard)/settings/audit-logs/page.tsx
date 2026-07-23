@@ -1,4 +1,5 @@
 "use client";
+import { useTranslation } from "../../../hooks/useTranslation";
 
 import { useState, useEffect } from "react";
 import { getCurrentUser } from "../../../lib/auth-helpers";
@@ -24,6 +25,7 @@ type AuditLog = {
 };
 
 export default function AuditLogsPage() {
+  const { t } = useTranslation();
   const [userRole, setUserRole] = useState<UserRole | null>(null);
   const [loading, setLoading] = useState(true);
   const [logs, setLogs] = useState<AuditLog[]>([]);
@@ -44,7 +46,7 @@ export default function AuditLogsPage() {
       try {
         const user = await getCurrentUser();
         if (!user) { router.replace("/login"); return; }
-        if (user.role !== "ADMIN") { setAuthState("denied"); setLoading(false); return; }
+        if (user.role !== "SUPER_ADMIN") { setAuthState("denied"); setLoading(false); return; }
         setUserRole(user.role);
         setAuthState("ok");
         fetchLogs(1);
@@ -78,7 +80,7 @@ export default function AuditLogsPage() {
     return <div className="px-8 py-6 text-sm text-zinc-400">Loading...</div>;
   }
 
-  if (userRole !== "ADMIN") {
+  if (userRole !== "SUPER_ADMIN") {
     return (
       <div className="px-8 py-6">
         <div className="bg-red-900/50 border border-red-800 text-red-300 px-6 py-4 rounded-lg">
@@ -130,9 +132,9 @@ export default function AuditLogsPage() {
               className="w-full bg-zinc-800 border border-zinc-700 text-zinc-100 text-sm px-3 py-2 rounded-lg focus:outline-none focus:border-blue-500"
             >
               <option value="">All Actions</option>
-              <option value="CREATE">Create</option>
-              <option value="UPDATE">Update</option>
-              <option value="DELETE">Delete</option>
+              <option value="CREATE">{t("audit_logs.action_created")}</option>
+              <option value="UPDATE">{t("audit_logs.action_updated")}</option>
+              <option value="DELETE">{t("audit_logs.action_deleted")}</option>
             </select>
           </div>
           <div className="col-span-2 md:col-span-2">
@@ -216,7 +218,7 @@ export default function AuditLogsPage() {
               disabled={page === 1}
               className="text-sm text-zinc-400 hover:text-zinc-200 disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              Previous
+              {t("pagination.previous")}
             </button>
             <span className="text-sm text-zinc-400">
               Page {page} of {totalPages}
@@ -226,7 +228,7 @@ export default function AuditLogsPage() {
               disabled={page === totalPages}
               className="text-sm text-zinc-400 hover:text-zinc-200 disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              Next
+              {t("pagination.next")}
             </button>
           </div>
         )}

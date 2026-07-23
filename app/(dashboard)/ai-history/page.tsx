@@ -3,9 +3,11 @@ import AccessDenied from "../../components/AccessDenied";
 import { getChats } from "./actions";
 import AIHistoryClient from "./AIHistoryClient";
 
+export const dynamic = 'force-dynamic';
+
 export default async function AIHistoryPage() {
   const user = await getSessionUser();
-  if (!user || user.role !== "ADMIN") return <AccessDenied />;
+  if (!user || (user.role !== "SUPER_ADMIN" && user.role !== "MANAGER")) return <AccessDenied />;
 
   const chats = await getChats();
   return <AIHistoryClient initialChats={chats} />;

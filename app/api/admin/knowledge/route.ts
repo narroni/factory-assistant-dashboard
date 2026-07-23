@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from "next/server";
-import pdfParse from "pdf-parse";
 import { getSessionUser } from "../../../lib/session";
 import { prisma } from "../../../lib/prisma";
 import { parseXLSX, type XLSXParseResult } from "../../../lib/xlsx-parser";
@@ -11,7 +10,7 @@ const NO_TEXT_FOUND = "[PDF appears to be scanned/image-based - no extractable t
 export async function GET() {
   const user = await getSessionUser();
   if (!user) return NextResponse.json({ error: "Unauthenticated" }, { status: 401 });
-  if (user.role !== "ADMIN") return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  if (user.role !== "SUPER_ADMIN") return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
   const files = await prisma.factoryKnowledge.findMany({
     include: { user: { select: { name: true } } },
@@ -24,7 +23,7 @@ export async function GET() {
 export async function POST(req: NextRequest) {
   const user = await getSessionUser();
   if (!user) return NextResponse.json({ error: "Unauthenticated" }, { status: 401 });
-  if (user.role !== "ADMIN") return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  if (user.role !== "SUPER_ADMIN") return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
   try {
     const formData = await req.formData();
@@ -60,6 +59,7 @@ export async function POST(req: NextRequest) {
       };
     } else if (fileType === "pdf") {
       try {
+        const pdfParse = (await import("pdf-parse")).default;
         const result = await pdfParse(buffer);
         const text = result.text.trim();
         if (text.length === 0) {
