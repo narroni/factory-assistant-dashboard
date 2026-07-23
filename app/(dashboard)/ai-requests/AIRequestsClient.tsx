@@ -30,8 +30,15 @@ export default function AIRequestsClient({ initialRequests }: { initialRequests:
   const [expanded, setExpanded] = useState<string | null>(null);
   const [approving, setApproving] = useState<string | null>(null);
 
-  const total = allRequests.length;
-  const requests = allRequests.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
+  // Filter before paginating: `total` drives the pager, so filtering the
+  // already-sliced page would report the wrong count and leave empty pages.
+  // "" is the "all" sentinel used by the filter buttons below.
+  const filtered = statusFilter === ""
+    ? allRequests
+    : allRequests.filter((r) => r.status === statusFilter);
+
+  const total = filtered.length;
+  const requests = filtered.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
 
   async function approve(id: string) {
     setApproving(id);

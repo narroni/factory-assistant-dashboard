@@ -3,6 +3,8 @@
 import { prisma } from "../../lib/prisma";
 import { requireAdmin } from "../../lib/auth-helpers";
 import { logAuditEvent } from "../../lib/audit";
+import { getSessionUser } from "../../lib/session";
+import { revalidatePath } from "next/cache";
 
 export type Customer = {
   id: string;
@@ -17,6 +19,8 @@ export type Customer = {
 };
 
 export async function getCustomers(): Promise<Customer[]> {
+  const user = await getSessionUser();
+  if (!user) throw new Error("Authentication required");
   const rows = await prisma.customer.findMany({
     orderBy: { name: "asc" },
     include: {
@@ -41,6 +45,8 @@ export async function getCustomers(): Promise<Customer[]> {
 }
 
 export async function getCustomerWithOrders(id: string) {
+  const user = await getSessionUser();
+  if (!user) throw new Error("Authentication required");
   const c = await prisma.customer.findUnique({
     where: { id },
     include: {
@@ -72,6 +78,7 @@ export async function addCustomer(data: {
     include: { orders: true },
   });
   await logAuditEvent("Customer", row.id, "CREATE", undefined, { name: row.name });
+  revalidatePath("/customers");
   return {
     id: row.id, name: row.name,
     contactName: row.contactName, email: row.email, phone: row.phone, notes: row.notes,
@@ -100,6 +107,7 @@ export async function updateCustomer(id: string, data: {
     include: { orders: { select: { valueEur: true, createdAt: true }, orderBy: { createdAt: "desc" } } },
   });
   if (before) await logAuditEvent("Customer", id, "UPDATE", { name: before.name }, { name: row.name });
+  revalidatePath("/customers");
   return {
     id: row.id, name: row.name,
     contactName: row.contactName, email: row.email, phone: row.phone, notes: row.notes,
@@ -118,4 +126,5 @@ export async function deleteCustomer(id: string): Promise<{ error: string } | vo
   const before = await prisma.customer.findUnique({ where: { id } });
   await prisma.customer.delete({ where: { id } });
   if (before) await logAuditEvent("Customer", id, "DELETE", { name: before.name });
+  revalidatePath("/customers");
 }

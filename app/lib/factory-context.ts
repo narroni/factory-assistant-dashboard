@@ -6,6 +6,7 @@
 "use server";
 
 import { prisma } from "./prisma";
+import { getSessionUser } from "./session";
 
 export type FactoryContext = {
   asOf: string;
@@ -82,6 +83,8 @@ export type FactoryContext = {
 };
 
 export async function loadFactoryContext(): Promise<FactoryContext> {
+  const user = await getSessionUser();
+  if (!user) throw new Error("Authentication required");
   const [
     matStats,
     lowStockMats,

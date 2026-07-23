@@ -102,7 +102,11 @@ function MaterialModal({
 // ── Page ──────────────────────────────────────────────────────────────────────
 
 export default function MaterialsClient({ initialItems }: { initialItems: Material[] }) {
+<<<<<<< HEAD
   const { t, language } = useTranslation();
+=======
+  const { t } = useTranslation();
+>>>>>>> e558fa8111053022657c0be3c3c0820c60cb46be
   const statusLabels: Record<MaterialStatus, string> = {
     "In Stock": t("status.in_stock"),
     "Low Stock": t("status.low_stock"),

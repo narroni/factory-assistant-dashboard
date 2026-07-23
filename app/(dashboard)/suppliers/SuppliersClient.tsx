@@ -139,7 +139,11 @@ function SupplierForm({ mode, form, onChange, onSave, onClose }: {
 // ── Page ──────────────────────────────────────────────────────────────────────
 
 export default function SuppliersClient({ initialItems }: { initialItems: Supplier[] }) {
+<<<<<<< HEAD
   const { t, language } = useTranslation();
+=======
+  const { t } = useTranslation();
+>>>>>>> e558fa8111053022657c0be3c3c0820c60cb46be
   const statusLabels: Record<SupplierStatus, string> = {
     "Active": t("status.active"),
     "Warning": t("status.warning"),

@@ -3,6 +3,8 @@
 import { prisma } from "../../lib/prisma";
 import { requireAdmin, requireCanChangeStatus } from "../../lib/auth-helpers";
 import { logAuditEvent } from "../../lib/audit";
+import { getSessionUser } from "../../lib/session";
+import { revalidatePath } from "next/cache";
 
 export type OrderStatus = "Pending" | "In Production" | "Completed" | "Delayed" | "Cancelled";
 
@@ -96,6 +98,8 @@ function mapOrder(o: {
 }
 
 export async function getOrders(): Promise<Order[]> {
+  const user = await getSessionUser();
+  if (!user) throw new Error("Authentication required");
   const rows = await prisma.order.findMany({
     orderBy: { createdAt: "desc" },
     include: { lines: { orderBy: { createdAt: "asc" } } },
@@ -104,6 +108,8 @@ export async function getOrders(): Promise<Order[]> {
 }
 
 export async function getOrderById(id: string): Promise<Order | null> {
+  const user = await getSessionUser();
+  if (!user) throw new Error("Authentication required");
   const o = await prisma.order.findUnique({
     where: { id },
     include: { lines: { orderBy: { createdAt: "asc" } } },
@@ -145,6 +151,7 @@ export async function addOrder(data: {
     orderNumber: dbOrder.orderNumber, customer: dbOrder.customer,
     lines: data.lines.length, qty: dbOrder.qty,
   });
+  revalidatePath("/orders");
   return mapOrder(dbOrder);
 }
 
@@ -187,6 +194,7 @@ export async function updateOrder(id: string, data: {
       { customer: dbOrder.customer, status: statusFromDb[dbOrder.status as keyof typeof statusFromDb] }
     );
   }
+  revalidatePath("/orders");
   return mapOrder(dbOrder);
 }
 
@@ -203,6 +211,7 @@ export async function deleteOrder(id: string): Promise<{ error: string } | void>
       customer: before.customer, product: before.productName,
     });
   }
+  revalidatePath("/orders");
 }
 
 export async function changeOrderStatus(id: string, status: OrderStatus): Promise<Order | { error: string }> {
@@ -231,6 +240,8 @@ export async function changeOrderStatus(id: string, status: OrderStatus): Promis
 export async function calculateOrderLines(
   lines: { articleCode: string; qty: number }[],
 ): Promise<{ lineCalcs: OrderLineCalc[]; totals: OrderTotals }> {
+  const user = await getSessionUser();
+  if (!user) throw new Error("Authentication required");
   const bladeProducts = await prisma.bladeProductSpec.findMany({
     where: { articleCode: { in: lines.map((l) => l.articleCode) } },
     include: { crateType: true },
@@ -311,6 +322,8 @@ export async function calculateOrderLines(
 // ── Customer lookup ───────────────────────────────────────────────────────────
 
 export async function getCustomerOptions(): Promise<{ id: string; name: string }[]> {
+  const user = await getSessionUser();
+  if (!user) throw new Error("Authentication required");
   const rows = await prisma.customer.findMany({ orderBy: { name: "asc" }, select: { id: true, name: true } });
   return rows;
 }
@@ -320,6 +333,8 @@ export async function getCustomerOptions(): Promise<{ id: string; name: string }
 export async function getBladeProductOptions(): Promise<{
   id: string; articleCode: string; productName: string; pcsPerCrate: number;
 }[]> {
+  const user = await getSessionUser();
+  if (!user) throw new Error("Authentication required");
   const rows = await prisma.bladeProductSpec.findMany({
     orderBy: { articleCode: "asc" },
     select: { id: true, articleCode: true, productName: true, pcsPerCrate: true },

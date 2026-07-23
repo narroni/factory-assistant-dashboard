@@ -62,6 +62,26 @@ export function NumberInput({
   max?: number;
   step?: string;
 }) {
+  // The raw input string is held locally so intermediate states survive typing.
+  // Deriving the displayed value straight from the number made "0" erase itself
+  // (0 rendered as "") and stripped the decimal point mid-keystroke, because
+  // parseFloat("1.") is 1 and re-rendering replaced "1." with "1".
+  const [raw, setRaw] = useState(value === 0 ? "" : String(value));
+
+  // Resync when the parent changes the value externally (e.g. the form is
+  // reopened on a different record). Uses React's "adjust state during render"
+  // pattern rather than an effect: no extra commit, and typing is never
+  // interrupted because the text is only replaced when it does not already
+  // parse to the incoming number.
+  const [lastValue, setLastValue] = useState(value);
+  if (value !== lastValue) {
+    setLastValue(value);
+    const parsed = parseFloat(raw);
+    if (parsed !== value && !(value === 0 && raw === "")) {
+      setRaw(value === 0 ? "" : String(value));
+    }
+  }
+
   return (
     <div>
       <input
@@ -69,8 +89,24 @@ export function NumberInput({
         step={step}
         min={min}
         max={max}
-        value={value === 0 ? "" : value}
-        onChange={(e) => onChange(parseFloat(e.target.value) || 0)}
+        value={raw}
+        onChange={(e) => {
+          const next = e.target.value;
+          setRaw(next);
+          const parsed = parseFloat(next);
+          if (!isNaN(parsed)) onChange(parsed);
+          else if (next === "" || next === "-") onChange(0);
+        }}
+        onBlur={() => {
+          const parsed = parseFloat(raw);
+          if (isNaN(parsed)) {
+            setRaw("");
+            onChange(0);
+          } else {
+            setRaw(String(parsed));
+            onChange(parsed);
+          }
+        }}
         placeholder={placeholder ?? "0"}
         className={inputCls}
       />

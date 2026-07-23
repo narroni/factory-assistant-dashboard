@@ -6,8 +6,11 @@ import { useAuth } from "../../hooks/useAuth";
 import { useTranslation } from "../../hooks/useTranslation";
 import { useToast, ToastList } from "../../components/Toast";
 
+<<<<<<< HEAD
 export const dynamic = 'force-dynamic';
 
+=======
+>>>>>>> e558fa8111053022657c0be3c3c0820c60cb46be
 // ── Types ─────────────────────────────────────────────────────────────────────
 
 type RequestType = "CREATE_PRODUCT" | "CREATE_MATERIAL" | "CREATE_ORDER";

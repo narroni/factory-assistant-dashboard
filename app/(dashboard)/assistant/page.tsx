@@ -810,6 +810,7 @@ export default function AssistantPage() {
     }
   }
 
+<<<<<<< HEAD
   // Poll for PENDING messages
   useEffect(() => {
     if (!activeChatId) return;
@@ -840,6 +841,17 @@ export default function AssistantPage() {
 
     return () => clearInterval(interval);
   }, [activeChatId]);
+=======
+  // A 2s poll for PENDING messages used to live here. It was unreachable: the
+  // send path marks its message STREAMING (never PENDING) and the effect
+  // explicitly skipped while anything was STREAMING, while the server closes
+  // the PENDING window inside the same request (COMPLETED on success, FAILED on
+  // error). Only a crashed generation leaves a row PENDING, which polling can
+  // never resolve — it just refetched forever. It also ran a fetch inside a
+  // setMessages updater (double-firing under StrictMode) and dropped
+  // respondedAt on every tick. A stale PENDING row now simply renders its
+  // existing spinner; the FAILED state and its "Try again" button remain.
+>>>>>>> e558fa8111053022657c0be3c3c0820c60cb46be
 
   const isEmpty = messages.length === 0;
 

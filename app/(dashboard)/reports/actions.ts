@@ -1,6 +1,7 @@
 "use server";
 
 import { prisma } from "../../lib/prisma";
+import { getSessionUser } from "../../lib/session";
 
 export type Report = {
   id: string;
@@ -34,6 +35,8 @@ function todayString(): string {
 }
 
 export async function getInventoryReport(): Promise<Report> {
+  const user = await getSessionUser();
+  if (!user) throw new Error("Authentication required");
   try {
     const materials = await prisma.material.findMany({
       include: {
@@ -75,6 +78,8 @@ export async function getInventoryReport(): Promise<Report> {
 }
 
 export async function getProductsReport(): Promise<Report> {
+  const user = await getSessionUser();
+  if (!user) throw new Error("Authentication required");
   try {
     const products = await prisma.bladeProductSpec.findMany({
       include: { crateType: true },
@@ -113,6 +118,8 @@ export async function getProductsReport(): Promise<Report> {
 }
 
 export async function getOrdersReport(): Promise<Report> {
+  const user = await getSessionUser();
+  if (!user) throw new Error("Authentication required");
   try {
     const orders = await prisma.order.findMany({
       where: { customerId: { not: null } },
@@ -149,6 +156,8 @@ export async function getOrdersReport(): Promise<Report> {
 }
 
 export async function getSuppliersReport(): Promise<Report> {
+  const user = await getSessionUser();
+  if (!user) throw new Error("Authentication required");
   try {
     const suppliers = await prisma.supplier.findMany({
       include: {
@@ -191,6 +200,8 @@ export async function getSuppliersReport(): Promise<Report> {
 }
 
 export async function getProductionCapacityReport(): Promise<Report> {
+  const user = await getSessionUser();
+  if (!user) throw new Error("Authentication required");
   try {
     const products = await prisma.bladeProductSpec.findMany({
       include: { crateType: true },
@@ -230,6 +241,8 @@ export async function getProductionCapacityReport(): Promise<Report> {
 }
 
 export async function getAllReports(): Promise<Report[]> {
+  const user = await getSessionUser();
+  if (!user) throw new Error("Authentication required");
   try {
     const [inventory, products, orders, suppliers, capacity] = await Promise.all([
       getInventoryReport(),

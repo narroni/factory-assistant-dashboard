@@ -3,6 +3,8 @@
 import { prisma } from "../../lib/prisma";
 import { requireAdmin } from "../../lib/auth-helpers";
 import { logAuditEvent } from "../../lib/audit";
+import { getSessionUser } from "../../lib/session";
+import { revalidatePath } from "next/cache";
 
 export type ProductStatus = "Active" | "Inactive";
 
@@ -54,6 +56,8 @@ function mapRow(p: any): BladeProduct {
 }
 
 export async function getBladeProducts(): Promise<BladeProduct[]> {
+  const user = await getSessionUser();
+  if (!user) throw new Error("Authentication required");
   const rows = await prisma.bladeProductSpec.findMany({
     include: { crateType: true },
     orderBy: { articleCode: "asc" },
@@ -62,6 +66,8 @@ export async function getBladeProducts(): Promise<BladeProduct[]> {
 }
 
 export async function getCrateTypes() {
+  const user = await getSessionUser();
+  if (!user) throw new Error("Authentication required");
   return prisma.crateType.findMany({ orderBy: { code: "asc" } });
 }
 
@@ -92,6 +98,7 @@ export async function addBladeProduct(data: BladeProductFormData): Promise<Blade
     include: { crateType: true },
   });
   await logAuditEvent("BladeProduct", row.id, "CREATE", undefined, { articleCode: row.articleCode });
+  revalidatePath("/products");
   return mapRow(row);
 }
 
@@ -129,6 +136,7 @@ export async function updateBladeProduct(id: string, data: BladeProductFormData)
       { articleCode: row.articleCode }
     );
   }
+  revalidatePath("/products");
   return mapRow(row);
 }
 
@@ -141,5 +149,6 @@ export async function deleteBladeProduct(id: string): Promise<{ error: string } 
   const before = await prisma.bladeProductSpec.findUnique({ where: { id } });
   await prisma.bladeProductSpec.delete({ where: { id } });
   if (before) await logAuditEvent("BladeProduct", id, "DELETE", { articleCode: before.articleCode });
+  revalidatePath("/products");
 }
 
