@@ -24,6 +24,7 @@ export const dictionaries: Record<Language, Record<string, string>> = {
     "nav.customers": "Customers",
     "nav.my_requests": "My Requests",
     "nav.requests": "Requests",
+    "nav.crates_containers": "Crates & Containers",
 
     // Page titles
     "page.overview": "Overview",
@@ -42,6 +43,7 @@ export const dictionaries: Record<Language, Record<string, string>> = {
     "page.customers": "Customers",
     "page.ai_rules": "AI Rules",
     "page.ai_context": "AI Context Viewer",
+    "page.crates_containers": "Crates & Containers",
 
     // Page subtitles
     "subtitle.overview": "Factory operations at a glance",
@@ -57,6 +59,7 @@ export const dictionaries: Record<Language, Record<string, string>> = {
     "subtitle.ai_history": "Complete log of all AI interactions",
     "subtitle.packaging_calculator": "Calculate crating, weight, area, and volume for container shipments.",
     "subtitle.customers": "Customer directory, contact info, and order history.",
+    "subtitle.crates_containers": "Manage crate types and container types used for packaging.",
 
     // KPI Cards
     "kpi.total_materials": "Total Materials",
@@ -176,6 +179,8 @@ export const dictionaries: Record<Language, Record<string, string>> = {
     "action.add_material": "Add Material",
     "action.add_customer": "Add Customer",
     "action.add_supplier": "Add Supplier",
+    "action.add_crate": "Add Crate",
+    "action.add_container": "Add Container",
     "action.save_changes": "Save Changes",
     "action.delete_item": "Delete",
 
@@ -224,6 +229,14 @@ export const dictionaries: Record<Language, Record<string, string>> = {
     "form.edit_customer": "Edit Customer",
     "form.add_supplier": "Add Supplier",
     "form.edit_supplier": "Edit Supplier",
+    "form.add_crate": "Add Crate",
+    "form.edit_crate": "Edit Crate",
+    "form.subtitle_add_crate": "Add a new crate type for packaging.",
+    "form.subtitle_edit_crate": "Update crate type specifications.",
+    "form.add_container": "Add Container",
+    "form.edit_container": "Edit Container",
+    "form.subtitle_add_container": "Add a new container type for shipments.",
+    "form.subtitle_edit_container": "Update container type specifications.",
 
     // Form sections
     "form.section_identity": "Identity",
@@ -285,6 +298,9 @@ export const dictionaries: Record<Language, Record<string, string>> = {
     "form.label_lead_time_days": "Lead Time (days)",
     "form.label_on_time_rate": "On-Time Rate (%)",
 
+    // Form field labels (Crates)
+    "form.label_legs_description": "Legs Description",
+
     // Form placeholders
     "form.placeholder_select": "Select…",
     "form.placeholder_select_crate": "Select crate…",
@@ -299,6 +315,8 @@ export const dictionaries: Record<Language, Record<string, string>> = {
     "empty.no_suppliers": "No suppliers found.",
     "empty.no_results": "No results found.",
     "empty.no_reports": "No reports available.",
+    "empty.no_crates": "No crate types found.",
+    "empty.no_containers": "No container types found.",
 
     // Legacy label keys (for backwards compatibility)
     "label.name": "Name",
@@ -336,10 +354,32 @@ export const dictionaries: Record<Language, Record<string, string>> = {
     "delete.title_material": "Delete Material",
     "delete.title_customer": "Delete Customer",
     "delete.title_supplier": "Delete Supplier",
+    "delete.title_crate": "Delete Crate",
+    "delete.title_container": "Delete Container",
     "delete.message": "Are you sure you want to delete",
     "delete.message_end": "? This action cannot be undone.",
     "delete.confirm": "Delete",
     "delete.cancel": "Cancel",
+
+    // Crates & Containers
+    "tab.crates": "Crates",
+    "tab.containers": "Containers",
+    "table.weight_kg": "Weight (kg)",
+    "table.x_m": "X (m)",
+    "table.y_m": "Y (m)",
+    "table.z_m": "Z (m)",
+    "table.has_legs": "Has Legs",
+    "table.length_m": "Length (m)",
+    "table.width_m": "Width (m)",
+    "table.max_volume_m3": "Max Volume (m³)",
+    "table.max_payload_kg": "Max Payload (kg)",
+    "common.yes": "Yes",
+    "common.no": "No",
+    "toast.crate_added": "Crate added.",
+    "toast.crate_updated": "Crate updated.",
+    "toast.container_added": "Container added.",
+    "toast.container_updated": "Container updated.",
+    "toast.deleted_suffix": "deleted.",
 
     // Summary/Stats
     "summary.total_products": "Total Products",
@@ -586,6 +626,7 @@ export const dictionaries: Record<Language, Record<string, string>> = {
     "nav.customers": "Kunden",
     "nav.my_requests": "Meine Anfragen",
     "nav.requests": "Anfragen",
+    "nav.crates_containers": "Kisten & Container",
 
     // Page titles
     "page.overview": "Übersicht",
@@ -604,6 +645,7 @@ export const dictionaries: Record<Language, Record<string, string>> = {
     "page.customers": "Kunden",
     "page.ai_rules": "KI-Regeln",
     "page.ai_context": "KI-Kontext-Viewer",
+    "page.crates_containers": "Kisten & Container",
 
     // Page subtitles
     "subtitle.overview": "Fabrikbetrieb auf einen Blick",
@@ -619,6 +661,7 @@ export const dictionaries: Record<Language, Record<string, string>> = {
     "subtitle.ai_history": "Vollständiges Protokoll aller KI-Interaktionen",
     "subtitle.packaging_calculator": "Kistung, Gewicht, Fläche und Volumen für Containerladungen berechnen.",
     "subtitle.customers": "Kundenverzeichnis, Kontaktinformationen und Bestellverlauf.",
+    "subtitle.crates_containers": "Kistentypen und Containertypen für die Verpackung verwalten.",
 
     // KPI Cards
     "kpi.total_materials": "Gesamtmaterialien",
@@ -778,6 +821,8 @@ export const dictionaries: Record<Language, Record<string, string>> = {
     "action.add_material": "Material hinzufügen",
     "action.add_customer": "Kunde hinzufügen",
     "action.add_supplier": "Lieferant hinzufügen",
+    "action.add_crate": "Kiste hinzufügen",
+    "action.add_container": "Container hinzufügen",
     "action.save_changes": "Änderungen speichern",
     "action.delete_item": "Löschen",
 
@@ -823,6 +868,14 @@ export const dictionaries: Record<Language, Record<string, string>> = {
     "form.edit_customer": "Kunde bearbeiten",
     "form.add_supplier": "Lieferant hinzufügen",
     "form.edit_supplier": "Lieferant bearbeiten",
+    "form.add_crate": "Kiste hinzufügen",
+    "form.edit_crate": "Kiste bearbeiten",
+    "form.subtitle_add_crate": "Neuen Kistentyp für die Verpackung hinzufügen.",
+    "form.subtitle_edit_crate": "Kistentyp-Spezifikationen aktualisieren.",
+    "form.add_container": "Container hinzufügen",
+    "form.edit_container": "Container bearbeiten",
+    "form.subtitle_add_container": "Neuen Containertyp für Sendungen hinzufügen.",
+    "form.subtitle_edit_container": "Containertyp-Spezifikationen aktualisieren.",
 
     // Form sections
     "form.section_identity": "Identität",
@@ -884,6 +937,9 @@ export const dictionaries: Record<Language, Record<string, string>> = {
     "form.label_lead_time_days": "Lieferzeit (Tage)",
     "form.label_on_time_rate": "Pünktlichkeitsquote (%)",
 
+    // Form field labels (Crates)
+    "form.label_legs_description": "Beschreibung der Füße",
+
     // Form placeholders
     "form.placeholder_select": "Wählen…",
     "form.placeholder_select_crate": "Kiste wählen…",
@@ -892,6 +948,8 @@ export const dictionaries: Record<Language, Record<string, string>> = {
 
     "empty.no_customers": "Keine Kunden gefunden.",
     "empty.no_results": "Keine Ergebnisse gefunden.",
+    "empty.no_crates": "Keine Kistentypen gefunden.",
+    "empty.no_containers": "Keine Containertypen gefunden.",
 
     // Delete confirmation
     "delete.title_product": "Produkt löschen",
@@ -899,10 +957,32 @@ export const dictionaries: Record<Language, Record<string, string>> = {
     "delete.title_material": "Material löschen",
     "delete.title_customer": "Kunde löschen",
     "delete.title_supplier": "Lieferant löschen",
+    "delete.title_crate": "Kiste löschen",
+    "delete.title_container": "Container löschen",
     "delete.message": "Sind Sie sicher, dass Sie ",
     "delete.message_end": " löschen möchten? Diese Aktion kann nicht rückgängig gemacht werden.",
     "delete.confirm": "Löschen",
     "delete.cancel": "Abbrechen",
+
+    // Crates & Containers
+    "tab.crates": "Kisten",
+    "tab.containers": "Container",
+    "table.weight_kg": "Gewicht (kg)",
+    "table.x_m": "X (m)",
+    "table.y_m": "Y (m)",
+    "table.z_m": "Z (m)",
+    "table.has_legs": "Hat Füße",
+    "table.length_m": "Länge (m)",
+    "table.width_m": "Breite (m)",
+    "table.max_volume_m3": "Max. Volumen (m³)",
+    "table.max_payload_kg": "Max. Nutzlast (kg)",
+    "common.yes": "Ja",
+    "common.no": "Nein",
+    "toast.crate_added": "Kiste hinzugefügt.",
+    "toast.crate_updated": "Kiste aktualisiert.",
+    "toast.container_added": "Container hinzugefügt.",
+    "toast.container_updated": "Container aktualisiert.",
+    "toast.deleted_suffix": "gelöscht.",
 
     // Summary/Stats
     "summary.total_products": "Gesamtprodukte",

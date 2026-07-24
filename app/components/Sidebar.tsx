@@ -57,26 +57,31 @@ function SignOutIcon() {
 
 // ── Nav config ─────────────────────────────────────────────────────────────────
 
+// `roles` restricts a nav item to specific roles; omit to show it to everyone.
+const SUPER_ADMIN_ONLY = ["SUPER_ADMIN"];
+const MANAGER_AND_ABOVE = ["SUPER_ADMIN", "MANAGER"];
+
 const mainNav = [
-  { key: "overview",   href: "/",           Icon: GridIcon,     viewerHidden: false },
-  { key: "materials",  href: "/materials",  Icon: BoxIcon,      viewerHidden: false },
-  { key: "products",   href: "/products",   Icon: LayersIcon,   viewerHidden: false },
-  { key: "customers",  href: "/customers",  Icon: UsersIcon,    viewerHidden: true },
-  { key: "suppliers",  href: "/suppliers",  Icon: TruckIcon,    viewerHidden: true },
-  { key: "reports",    href: "/reports",    Icon: BarChartIcon, viewerHidden: false },
+  { key: "overview",           href: "/",                   Icon: GridIcon },
+  { key: "materials",          href: "/materials",           Icon: BoxIcon,      roles: SUPER_ADMIN_ONLY },
+  { key: "products",           href: "/products",            Icon: LayersIcon },
+  { key: "crates_containers",  href: "/crates-containers",   Icon: PackageIcon,  roles: MANAGER_AND_ABOVE },
+  { key: "customers",          href: "/customers",           Icon: UsersIcon,    roles: SUPER_ADMIN_ONLY },
+  { key: "suppliers",          href: "/suppliers",           Icon: TruckIcon,    roles: SUPER_ADMIN_ONLY },
+  { key: "reports",            href: "/reports",             Icon: BarChartIcon, roles: SUPER_ADMIN_ONLY },
 ];
 
 // Orders sub-group (orders + packaging calculator)
 const ordersNav = [
-  { key: "orders",               href: "/orders",               Icon: ClipboardIcon, viewerHidden: true },
-  { key: "packaging_calculator", href: "/packaging-calculator", Icon: PackageIcon,   viewerHidden: false },
+  { key: "orders",               href: "/orders",               Icon: ClipboardIcon, roles: SUPER_ADMIN_ONLY },
+  { key: "packaging_calculator", href: "/packaging-calculator", Icon: PackageIcon },
 ];
 
 const aiNav = [
-  { key: "assistant",   href: "/assistant",   Icon: SparkleIcon,  adminOnly: false },
-  { key: "ai_requests", href: "/ai-requests", Icon: InboxIcon,    adminOnly: true },
-  { key: "ai_history",  href: "/ai-history",  Icon: HistoryIcon,  adminOnly: true },
-  { key: "outputs",     href: "/outputs",     Icon: DownloadIcon, adminOnly: false },
+  { key: "assistant",   href: "/assistant",   Icon: SparkleIcon },
+  { key: "ai_requests", href: "/ai-requests", Icon: InboxIcon,   roles: SUPER_ADMIN_ONLY },
+  { key: "ai_history",  href: "/ai-history",  Icon: HistoryIcon, roles: SUPER_ADMIN_ONLY },
+  { key: "outputs",     href: "/outputs",     Icon: DownloadIcon },
 ];
 
 // ── NavLink ────────────────────────────────────────────────────────────────────
@@ -188,9 +193,9 @@ export default function Sidebar() {
     return () => clearInterval(interval);
   }, [isManagerOrAbove]);
 
-  const visibleAiNav = aiNav.filter((n) => !n.adminOnly || role === "SUPER_ADMIN" || role === "MANAGER");
-  const visibleMainNav = mainNav.filter((n) => !n.viewerHidden || role !== "VIEWER");
-  const visibleOrdersNav = ordersNav.filter((n) => !n.viewerHidden || role !== "VIEWER");
+  const visibleAiNav = aiNav.filter((n) => !n.roles || n.roles.includes(role));
+  const visibleMainNav = mainNav.filter((n) => !n.roles || n.roles.includes(role));
+  const visibleOrdersNav = ordersNav.filter((n) => !n.roles || n.roles.includes(role));
   const canSeeSettings = role === "SUPER_ADMIN" || role === "MANAGER";
 
   async function handleSignOut() {

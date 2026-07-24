@@ -20,6 +20,7 @@ const pageKeys: Record<string, string> = {
   "/ai-history":  "ai_history",
   "/packaging-calculator": "packaging_calculator",
   "/customers": "customers",
+  "/crates-containers": "crates_containers",
 };
 
 type Alert = { type: "warning" | "info"; title: string; description: string };
