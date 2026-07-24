@@ -1,8 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSessionUser } from "../../lib/session";
 import { loadFactoryContext } from "../../lib/factory-context";
-import { streamCopilot, checkOllamaHealth, type ConversationMessage } from "../../lib/ollama";
+import { checkOllamaHealth } from "../../lib/ollama";
+import { getAIProvider, type AIMessage } from "../../lib/ai";
+import { buildSystemPrompt } from "../../lib/ai/prompt-builder";
 import { parseAssistantResponse, ACTION_SEPARATOR, type ActionProposal } from "../../lib/ai/response-parser";
+
+export type ConversationMessage = { role: "user" | "assistant"; content: string };
 import { prisma } from "../../lib/prisma";
 import { calculatePackaging, formatPackagingResultText, calculateMaxCapacity, formatMaxCapacityResultText, optimizeContainerMix, formatOptimizationResultText, analyzeContainerMix, formatMixAnalysisText } from "../../lib/packaging-calculator";
 import { normalizeActionType, isReadOnlyQuestion } from "../../lib/action-types";
@@ -655,13 +659,19 @@ export async function POST(req: NextRequest) {
       let usedFallback = false;
       let fallbackReason: string | undefined;
 
-      // 1) Stream tokens from Ollama, forwarding only the visible prose.
+      // 1) Stream tokens from the AI provider, forwarding only the visible prose.
       try {
-        const tokenStream = await streamCopilot({
-          question, history, ctx, language,
-          config: copilotConfig,
-          knowledge: knowledgeText || undefined,
-        });
+        // Build the messages exactly as streamCopilot() did: system prompt, last 10
+        // history messages, then the question with the language instruction appended.
+        const langInstruction = language === "de"
+          ? "Answer in German (Deutsch). The user is writing in German."
+          : "Answer in English.";
+        const messages: AIMessage[] = [
+          { role: "system", content: buildSystemPrompt(ctx, copilotConfig, knowledgeText || undefined) },
+          ...history.slice(-10),
+          { role: "user", content: `${question}\n\n[Language instruction: ${langInstruction}]` },
+        ];
+        const tokenStream = await getAIProvider().stream(messages);
         const reader = tokenStream.getReader();
         while (true) {
           const { done, value } = await reader.read();

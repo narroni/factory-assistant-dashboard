@@ -86,6 +86,8 @@ async function ollamaFetch(
  * Run the full copilot cycle: send factory context + conversation history to
  * Ollama, parse the natural-language answer and any action proposals.
  * NEVER writes to the database.
+ *
+ * @deprecated Use getAIProvider() from app/lib/ai/index.ts instead.
  */
 export async function runCopilot({
   question,
@@ -186,6 +188,8 @@ export async function runCopilot({
  * Throws on connection/HTTP failure *before* any token is emitted, so the caller can
  * fall back cleanly. A failure that occurs mid-stream surfaces as a stream error on
  * the returned ReadableStream.
+ *
+ * @deprecated Use getAIProvider() from app/lib/ai/index.ts instead.
  */
 export async function streamCopilot({
   question,
