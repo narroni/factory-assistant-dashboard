@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSessionUser } from "../../lib/session";
 import { loadFactoryContext } from "../../lib/factory-context";
-import { streamCopilot, parseAssistantResponse, ACTION_SEPARATOR, checkOllamaHealth, type ConversationMessage, type ActionProposal } from "../../lib/ollama";
+import { streamCopilot, checkOllamaHealth, type ConversationMessage } from "../../lib/ollama";
+import { parseAssistantResponse, ACTION_SEPARATOR, type ActionProposal } from "../../lib/ai/response-parser";
 import { prisma } from "../../lib/prisma";
 import { calculatePackaging, formatPackagingResultText, calculateMaxCapacity, formatMaxCapacityResultText, optimizeContainerMix, formatOptimizationResultText, analyzeContainerMix, formatMixAnalysisText } from "../../lib/packaging-calculator";
 import { normalizeActionType, isReadOnlyQuestion } from "../../lib/action-types";
